@@ -28,6 +28,8 @@ import {ScoopFactory} from "../src/ScoopFactory.sol";
 import {ScoopFactoryDeployer} from "../src/ScoopFactoryDeployer.sol";
 import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
+import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
+import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -43,17 +45,23 @@ contract ScoopFactoryForkTest is Test {
     address constant POSITION_MANAGER_ADDR = 0x58daec3116aae6D93017bAAea7749052E8a04fA7;
     address constant UNIVERSAL_ROUTER_ADDR = 0x8876789976dEcBfCbBbe364623C63652db8C0904;
     address constant PERMIT2_ADDR = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address constant ETH_USD_FEED = 0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9;
 
     uint8 constant CMD_V4_SWAP = 0x10;
+    uint48 constant TEST_MAX_AGE = 7 days;
 
     ScoopCreatorRegistry registry;
     ScoopCreatorRewards rewards;
     ScoopTokenDeployer tokenDeployer;
     ScoopLaunchDeployer launchDeployer;
+    ScoopQuoteRegistry quoteRegistry;
+    ScoopPriceOracle priceOracle;
     ScoopFactory factory;
 
     address authority;
     uint256 authorityKey;
+    address quoteAuthority;
+    address oracleAuthority;
     address buybackVault;
     address operations;
     address deployer;
@@ -66,6 +74,8 @@ contract ScoopFactoryForkTest is Test {
         vm.createSelectFork(rpcUrl);
 
         (authority, authorityKey) = makeAddrAndKey("verificationAuthority");
+        quoteAuthority = makeAddr("quoteAuthority");
+        oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
         deployer = makeAddr("launchDeployer");
@@ -77,6 +87,14 @@ contract ScoopFactoryForkTest is Test {
         tokenDeployer = new ScoopTokenDeployer();
         launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR);
 
+        quoteRegistry = new ScoopQuoteRegistry(quoteAuthority);
+        priceOracle = new ScoopPriceOracle(oracleAuthority);
+
+        vm.prank(quoteAuthority);
+        quoteRegistry.registerQuote(address(0), ScoopQuoteRegistry.QuoteType.Native);
+        vm.prank(oracleAuthority);
+        priceOracle.configureFeed(address(0), ETH_USD_FEED, TEST_MAX_AGE);
+
         ScoopFactoryDeployer protocol = new ScoopFactoryDeployer(
             address(registry),
             POOL_MANAGER_ADDR,
@@ -85,6 +103,8 @@ contract ScoopFactoryForkTest is Test {
             UNIVERSAL_ROUTER_ADDR,
             address(tokenDeployer),
             address(launchDeployer),
+            address(quoteRegistry),
+            address(priceOracle),
             buybackVault,
             operations
         );
@@ -94,6 +114,8 @@ contract ScoopFactoryForkTest is Test {
 
         assertEq(rewards.sourceRegistrar(), address(factory));
         assertEq(address(factory.creatorRewards()), address(rewards));
+        assertEq(address(factory.quoteRegistry()), address(quoteRegistry));
+        assertEq(address(factory.priceOracle()), address(priceOracle));
 
         vm.deal(deployer, 1 ether);
         vm.deal(trader, 10 ether);
@@ -102,7 +124,11 @@ contract ScoopFactoryForkTest is Test {
     function test_factoryLaunch_walletCreator_endToEnd() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
-            name: "Scoop Launch", symbol: "LAUNCH", creatorId: creatorId, salt: bytes32(uint256(1))
+            name: "Scoop Launch",
+            symbol: "LAUNCH",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            salt: bytes32(uint256(1))
         });
 
         uint256 gasBefore = gasleft();
@@ -163,7 +189,9 @@ contract ScoopFactoryForkTest is Test {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         vm.prank(deployer);
         (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
-            ScoopFactory.LaunchParams({name: "W", symbol: "W", creatorId: creatorId, salt: bytes32(uint256(2))})
+            ScoopFactory.LaunchParams({
+                name: "W", symbol: "W", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(2))
+            })
         );
 
         uint256 deployerEthBefore = deployer.balance;
@@ -232,7 +260,9 @@ contract ScoopFactoryForkTest is Test {
 
         vm.prank(deployer);
         (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
-            ScoopFactory.LaunchParams({name: "XTok", symbol: "X", creatorId: creatorId, salt: bytes32(uint256(3))})
+            ScoopFactory.LaunchParams({
+                name: "XTok", symbol: "X", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(3))
+            })
         );
 
         assertEq(rewards.sourceCreatorId(feeDistributor), creatorId);
@@ -270,12 +300,18 @@ contract ScoopFactoryForkTest is Test {
         vm.deal(deployerB, 1 ether);
 
         vm.prank(deployer);
-        (address tokenA,,,,) =
-            factory.launch(ScoopFactory.LaunchParams({name: "A", symbol: "A", creatorId: creatorId, salt: userSalt}));
+        (address tokenA,,,,) = factory.launch(
+            ScoopFactory.LaunchParams({
+                name: "A", symbol: "A", creatorId: creatorId, quoteAsset: address(0), salt: userSalt
+            })
+        );
 
         vm.prank(deployerB);
-        (address tokenB, address distributorB,,,) =
-            factory.launch(ScoopFactory.LaunchParams({name: "B", symbol: "B", creatorId: creatorId, salt: userSalt}));
+        (address tokenB, address distributorB,,,) = factory.launch(
+            ScoopFactory.LaunchParams({
+                name: "B", symbol: "B", creatorId: creatorId, quoteAsset: address(0), salt: userSalt
+            })
+        );
 
         assertTrue(tokenA != tokenB);
         assertEq(ScoopFeeDistributor(payable(factory.getLaunch(tokenA).feeDistributor)).deployer(), deployer);
@@ -284,8 +320,9 @@ contract ScoopFactoryForkTest is Test {
 
     function test_duplicateSaltSameDeployerReverts() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Dup", symbol: "DUP", creatorId: creatorId, salt: bytes32(uint256(9))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Dup", symbol: "DUP", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(9))
+        });
 
         vm.prank(deployer);
         factory.launch(params);
@@ -296,8 +333,9 @@ contract ScoopFactoryForkTest is Test {
     }
 
     function test_zeroCreatorIdRevertsAtomically() public {
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Z", symbol: "Z", creatorId: bytes32(0), salt: bytes32(uint256(8))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Z", symbol: "Z", creatorId: bytes32(0), quoteAsset: address(0), salt: bytes32(uint256(8))
+        });
 
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.ZeroCreatorId.selector);
@@ -306,15 +344,17 @@ contract ScoopFactoryForkTest is Test {
 
     function test_launchEmitsTokenLaunched() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Evt", symbol: "EVT", creatorId: creatorId, salt: bytes32(uint256(11))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Evt", symbol: "EVT", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(11))
+        });
 
         vm.prank(deployer);
         vm.recordLogs();
         (address token,,,,) = factory.launch(params);
 
-        bytes32 topic0 =
-            keccak256("TokenLaunched(address,address,bytes32,address,address,bytes32,uint256,string,string)");
+        bytes32 topic0 = keccak256(
+            "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+        );
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bool found;
         for (uint256 i; i < entries.length; ++i) {

@@ -27,6 +27,8 @@ import {ScoopFactory} from "../src/ScoopFactory.sol";
 import {ScoopFactoryDeployer} from "../src/ScoopFactoryDeployer.sol";
 import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
+import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
+import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -42,17 +44,23 @@ contract ScoopFactoryInitialBuyForkTest is Test {
     address constant POSITION_MANAGER_ADDR = 0x58daec3116aae6D93017bAAea7749052E8a04fA7;
     address constant UNIVERSAL_ROUTER_ADDR = 0x8876789976dEcBfCbBbe364623C63652db8C0904;
     address constant PERMIT2_ADDR = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address constant ETH_USD_FEED = 0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9;
 
     uint8 constant CMD_V4_SWAP = 0x10;
+    uint48 constant TEST_MAX_AGE = 7 days;
 
     ScoopCreatorRegistry registry;
     ScoopCreatorRewards rewards;
     ScoopTokenDeployer tokenDeployer;
     ScoopLaunchDeployer launchDeployer;
+    ScoopQuoteRegistry quoteRegistry;
+    ScoopPriceOracle priceOracle;
     ScoopFactory factory;
 
     address authority;
     uint256 authorityKey;
+    address quoteAuthority;
+    address oracleAuthority;
     address buybackVault;
     address operations;
     address deployer;
@@ -66,6 +74,8 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         vm.createSelectFork(rpcUrl);
 
         (authority, authorityKey) = makeAddrAndKey("verificationAuthority");
+        quoteAuthority = makeAddr("quoteAuthority");
+        oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
         deployer = makeAddr("launchDeployer");
@@ -76,6 +86,14 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         tokenDeployer = new ScoopTokenDeployer();
         launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR);
 
+        quoteRegistry = new ScoopQuoteRegistry(quoteAuthority);
+        priceOracle = new ScoopPriceOracle(oracleAuthority);
+
+        vm.prank(quoteAuthority);
+        quoteRegistry.registerQuote(address(0), ScoopQuoteRegistry.QuoteType.Native);
+        vm.prank(oracleAuthority);
+        priceOracle.configureFeed(address(0), ETH_USD_FEED, TEST_MAX_AGE);
+
         ScoopFactoryDeployer protocol = new ScoopFactoryDeployer(
             address(registry),
             POOL_MANAGER_ADDR,
@@ -84,6 +102,8 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             UNIVERSAL_ROUTER_ADDR,
             address(tokenDeployer),
             address(launchDeployer),
+            address(quoteRegistry),
+            address(priceOracle),
             buybackVault,
             operations
         );
@@ -99,8 +119,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_0_01_eth_standard() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Buy", symbol: "BUY", creatorId: creatorId, salt: bytes32(uint256(1))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Buy", symbol: "BUY", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(1))
+        });
 
         uint256 ethIn = 0.01 ether;
         uint256 gasBefore = gasleft();
@@ -139,8 +160,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_isRealMarketPurchase() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Mkt", symbol: "MKT", creatorId: creatorId, salt: bytes32(uint256(2))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Mkt", symbol: "MKT", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(2))
+        });
 
         vm.prank(deployer);
         (address token,,, uint256 lpTokenId, PoolId poolId, uint256 tokensBought) =
@@ -148,7 +170,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         // Pool moved and LP fees are accruable from the buy (not a factory inventory transfer).
         (, int24 tick,,) = IPoolManager(POOL_MANAGER_ADDR).getSlot0(poolId);
-        assertTrue(tick < 0, "ETH buy should move into one-sided range");
+        assertTrue(tick < factory.getLaunch(token).openingTick, "ETH buy should move tick down from opening");
         assertGt(tokensBought, 0);
         assertEq(IERC20(token).balanceOf(address(factory)), 0);
 
@@ -159,8 +181,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
     function test_launchAndBuy_slippageRevertsAtomically() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         bytes32 salt = bytes32(uint256(3));
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Slip", symbol: "SLP", creatorId: creatorId, salt: salt});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Slip", symbol: "SLP", creatorId: creatorId, quoteAsset: address(0), salt: salt
+        });
 
         uint256 ethBefore = deployer.balance;
 
@@ -180,8 +203,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_zeroValueReverts() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Z", symbol: "Z", creatorId: creatorId, salt: bytes32(uint256(4))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Z", symbol: "Z", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(4))
+        });
 
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.ZeroInitialBuy.selector);
@@ -190,8 +214,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_plainLaunch_unchanged_noInitialBuy() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Plain", symbol: "PLN", creatorId: creatorId, salt: bytes32(uint256(5))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Plain", symbol: "PLN", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(5))
+        });
 
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
@@ -227,8 +252,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_sellAfter() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Sell", symbol: "SEL", creatorId: creatorId, salt: bytes32(uint256(6))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Sell", symbol: "SEL", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(6))
+        });
 
         vm.prank(deployer);
         (address token,,,,, uint256 tokensBought) = factory.launchAndBuy{value: 0.01 ether}(params, 1);
@@ -240,8 +266,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_feeCollectionAndClaim() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Fee", symbol: "FEE", creatorId: creatorId, salt: bytes32(uint256(7))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Fee", symbol: "FEE", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(7))
+        });
 
         vm.prank(deployer);
         (address token, address feeDistributor, address locker, uint256 lpTokenId,, uint256 tokensBought) =
@@ -277,8 +304,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         uint256 xUser = 900001;
         bytes32 creatorId = registry.xCreatorId(xUser);
 
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "XBuy", symbol: "XB", creatorId: creatorId, salt: bytes32(uint256(8))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "XBuy", symbol: "XB", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(8))
+        });
 
         vm.prank(deployer);
         (address token, address feeDistributor, address locker, uint256 lpTokenId,, uint256 tokensBought) =
@@ -315,8 +343,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_deployerAttribution() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Attr", symbol: "ATR", creatorId: creatorId, salt: bytes32(uint256(9))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Attr", symbol: "ATR", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(9))
+        });
 
         vm.prank(deployer);
         (address token, address feeDistributor,,,, uint256 tokensBought) =
@@ -329,8 +358,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_duplicateSaltReverts() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Dup", symbol: "DUP", creatorId: creatorId, salt: bytes32(uint256(15))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Dup", symbol: "DUP", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(15))
+        });
 
         vm.prank(deployer);
         factory.launchAndBuy{value: 0.01 ether}(params, 1);
@@ -342,8 +372,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
     function test_launchAndBuy_emitsInitialBuyExecuted() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Evt", symbol: "EVT", creatorId: creatorId, salt: bytes32(uint256(16))});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Evt", symbol: "EVT", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(16))
+        });
 
         vm.prank(deployer);
         vm.recordLogs();
@@ -382,8 +413,9 @@ contract ScoopFactoryInitialBuyForkTest is Test {
     // ──────────────────────────────────────────────
 
     function _buySize(bytes32 creatorId, bytes32 salt, uint256 ethIn) internal returns (uint256 tokensBought) {
-        ScoopFactory.LaunchParams memory params =
-            ScoopFactory.LaunchParams({name: "Sz", symbol: "SZ", creatorId: creatorId, salt: salt});
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "Sz", symbol: "SZ", creatorId: creatorId, quoteAsset: address(0), salt: salt
+        });
         vm.prank(deployer);
         (,,,,, tokensBought) = factory.launchAndBuy{value: ethIn}(params, 1);
     }

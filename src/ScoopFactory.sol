@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -23,6 +24,9 @@ import {ScoopToken} from "./ScoopToken.sol";
 import {ScoopTokenDeployer} from "./ScoopTokenDeployer.sol";
 import {ScoopLaunchDeployer} from "./ScoopLaunchDeployer.sol";
 import {ScoopCreatorRewards} from "./ScoopCreatorRewards.sol";
+import {ScoopQuoteRegistry} from "./ScoopQuoteRegistry.sol";
+import {ScoopPriceOracle} from "./ScoopPriceOracle.sol";
+import {ScoopLaunchMath} from "./libraries/ScoopLaunchMath.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -30,10 +34,10 @@ interface IUniversalRouter {
 
 /**
  * @title ScoopFactory
- * @notice Permissionless atomic launch orchestrator for SCOOP Protocol V1 (ETH / ScoopToken).
- * @dev `launch` creates a market with no initial purchase. `launchAndBuy` creates the same market
- *      then executes a real Uniswap v4 exact-input ETH→token buy for `msg.sender` (the deployer)
- *      through Universal Router — subject to the standard 1% LP fee. No free allocation.
+ * @notice Permissionless atomic launch orchestrator for SCOOP Protocol V1.
+ * @dev Multi-quote launches against approved ScoopQuoteRegistry assets, priced via ScoopPriceOracle
+ *      and ScoopLaunchMath to a fixed ~$5,000 opening FDV. LP is always one-sided launched-token
+ *      principal (zero quote principal). `launchAndBuy` remains ETH-only (`quoteAsset == address(0)`).
  *
  *      Deployer attribution is always `msg.sender` (4% fee leg). Creator attribution is the
  *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration.
@@ -51,10 +55,6 @@ contract ScoopFactory is ReentrancyGuard {
     uint16 public constant BUYBACK_BPS = 2000;
     uint16 public constant OPERATIONS_BPS = 600;
 
-    /// @dev One-sided amount1 range when currency0 = native ETH and currency1 = ScoopToken.
-    int24 public constant TICK_LOWER = -400;
-    int24 public constant TICK_UPPER = -200;
-
     bytes32 public constant TOKEN_DOMAIN = keccak256("SCOOP_TOKEN");
     bytes32 public constant LAUNCH_DOMAIN = keccak256("SCOOP_LAUNCH");
 
@@ -64,11 +64,15 @@ contract ScoopFactory is ReentrancyGuard {
     error ZeroAddress();
     error ZeroCreatorId();
     error InvalidSourceRegistrar();
-    error UnexpectedCurrencyOrder();
     error FactoryRetainedLpNft(uint256 tokenId);
     error ZeroInitialBuy();
     error InsufficientTokensOut(uint256 actual, uint256 minimum);
     error NativeRefundFailed();
+    error QuoteNotRegistered(address quoteAsset);
+    error QuoteNotEnabled(address quoteAsset);
+    error UnsupportedQuoteDecimals(uint8 decimals);
+    error InitialBuyOnlySupportedForNativeQuote();
+    error QuotePrincipalNotZero(address quoteAsset, uint256 balance);
 
     IPoolManager public immutable poolManager;
     IPositionManager public immutable positionManager;
@@ -77,6 +81,8 @@ contract ScoopFactory is ReentrancyGuard {
     ScoopTokenDeployer public immutable tokenDeployer;
     ScoopLaunchDeployer public immutable launchDeployer;
     ScoopCreatorRewards public immutable creatorRewards;
+    ScoopQuoteRegistry public immutable quoteRegistry;
+    ScoopPriceOracle public immutable priceOracle;
     address public immutable buybackVault;
     address public immutable operations;
 
@@ -84,6 +90,7 @@ contract ScoopFactory is ReentrancyGuard {
         string name;
         string symbol;
         bytes32 creatorId;
+        address quoteAsset;
         bytes32 salt;
     }
 
@@ -91,10 +98,15 @@ contract ScoopFactory is ReentrancyGuard {
         address token;
         address deployer;
         bytes32 creatorId;
+        address quoteAsset;
         address feeDistributor;
         address liquidityLocker;
         PoolId poolId;
         uint256 lpTokenId;
+        uint160 openingSqrtPriceX96;
+        int24 openingTick;
+        int24 tickLower;
+        int24 tickUpper;
         uint64 createdAt;
     }
 
@@ -104,6 +116,11 @@ contract ScoopFactory is ReentrancyGuard {
         address liquidityLocker;
         uint256 lpTokenId;
         PoolId poolId;
+        address quoteAsset;
+        uint160 openingSqrtPriceX96;
+        int24 openingTick;
+        int24 tickLower;
+        int24 tickUpper;
     }
 
     mapping(address token => Launch) public launches;
@@ -112,10 +129,15 @@ contract ScoopFactory is ReentrancyGuard {
         address indexed token,
         address indexed deployer,
         bytes32 indexed creatorId,
+        address quoteAsset,
         address feeDistributor,
         address liquidityLocker,
         PoolId poolId,
         uint256 lpTokenId,
+        uint160 openingSqrtPriceX96,
+        int24 openingTick,
+        int24 tickLower,
+        int24 tickUpper,
         string name,
         string symbol
     );
@@ -130,18 +152,20 @@ contract ScoopFactory is ReentrancyGuard {
         address tokenDeployer_,
         address launchDeployer_,
         address creatorRewards_,
+        address quoteRegistry_,
+        address priceOracle_,
         address buybackVault_,
         address operations_
     ) {
         if (
             poolManager_ == address(0) || positionManager_ == address(0) || permit2_ == address(0)
                 || universalRouter_ == address(0) || tokenDeployer_ == address(0) || launchDeployer_ == address(0)
-                || creatorRewards_ == address(0) || buybackVault_ == address(0) || operations_ == address(0)
+                || creatorRewards_ == address(0) || quoteRegistry_ == address(0) || priceOracle_ == address(0)
+                || buybackVault_ == address(0) || operations_ == address(0)
         ) {
             revert ZeroAddress();
         }
 
-        // Factory must be the immutable CreatorRewards sourceRegistrar.
         if (ScoopCreatorRewards(creatorRewards_).sourceRegistrar() != address(this)) {
             revert InvalidSourceRegistrar();
         }
@@ -153,11 +177,13 @@ contract ScoopFactory is ReentrancyGuard {
         tokenDeployer = ScoopTokenDeployer(tokenDeployer_);
         launchDeployer = ScoopLaunchDeployer(launchDeployer_);
         creatorRewards = ScoopCreatorRewards(creatorRewards_);
+        quoteRegistry = ScoopQuoteRegistry(quoteRegistry_);
+        priceOracle = ScoopPriceOracle(priceOracle_);
         buybackVault = buybackVault_;
         operations = operations_;
     }
 
-    /// @notice Atomically launch an ETH / ScoopToken market with no initial purchase.
+    /// @notice Atomically launch a quote/ScoopToken market with no initial purchase.
     function launch(LaunchParams calldata params)
         external
         nonReentrant
@@ -168,9 +194,8 @@ contract ScoopFactory is ReentrancyGuard {
     }
 
     /**
-     * @notice Atomically launch a market then buy launched tokens with `msg.value` ETH.
-     * @dev Real Uniswap v4 exact-input buy through Universal Router (1% LP fee applies).
-     *      Purchased tokens are delivered to `msg.sender`. No free allocation.
+     * @notice Atomically launch then buy launched tokens with `msg.value` ETH.
+     * @dev Native ETH quote only. ERC20 quotes must use `launch` then trade separately.
      */
     function launchAndBuy(LaunchParams calldata params, uint256 minTokensOut)
         external
@@ -185,10 +210,11 @@ contract ScoopFactory is ReentrancyGuard {
             uint256 tokensBought
         )
     {
+        if (params.quoteAsset != address(0)) revert InitialBuyOnlySupportedForNativeQuote();
         if (msg.value == 0) revert ZeroInitialBuy();
 
         LaunchResult memory result = _launch(params);
-        tokensBought = _executeInitialBuy(result.token, msg.value, minTokensOut);
+        tokensBought = _executeInitialBuy(result.token, result.quoteAsset, msg.value, minTokensOut);
 
         emit InitialBuyExecuted(result.token, msg.sender, msg.value, tokensBought);
 
@@ -198,11 +224,37 @@ contract ScoopFactory is ReentrancyGuard {
 
     function _launch(LaunchParams calldata params) internal returns (LaunchResult memory result) {
         if (params.creatorId == bytes32(0)) revert ZeroCreatorId();
+        _requireApprovedQuote(params.quoteAsset);
 
         (result.token, result.feeDistributor, result.liquidityLocker) = _deployLaunchContracts(params);
+        result.quoteAsset = params.quoteAsset;
+
         creatorRewards.registerSource(result.feeDistributor, params.creatorId);
-        (result.lpTokenId, result.poolId) = _initPoolAndLockLiquidity(result.token, result.liquidityLocker);
+
+        uint8 quoteDecimals = _quoteDecimals(params.quoteAsset);
+        uint256 quotePriceUsd = priceOracle.getPriceUsd(params.quoteAsset);
+
+        ScoopLaunchMath.LaunchPricing memory pricing =
+            ScoopLaunchMath.calculateLaunchPricing(result.token, params.quoteAsset, quoteDecimals, quotePriceUsd);
+
+        result.openingSqrtPriceX96 = pricing.sqrtPriceX96;
+        result.openingTick = pricing.openingTick;
+        result.tickLower = pricing.tickLower;
+        result.tickUpper = pricing.tickUpper;
+
+        (result.lpTokenId, result.poolId) = _initPoolAndLockLiquidity(result, pricing);
         _finalizeLaunch(params, result);
+    }
+
+    function _requireApprovedQuote(address quoteAsset) internal view {
+        if (!quoteRegistry.isRegistered(quoteAsset)) revert QuoteNotRegistered(quoteAsset);
+        if (!quoteRegistry.isEnabled(quoteAsset)) revert QuoteNotEnabled(quoteAsset);
+    }
+
+    function _quoteDecimals(address quoteAsset) internal view returns (uint8 decimals_) {
+        if (quoteAsset == address(0)) return 18;
+        decimals_ = IERC20Metadata(quoteAsset).decimals();
+        if (decimals_ > 18) revert UnsupportedQuoteDecimals(decimals_);
     }
 
     function _deployLaunchContracts(LaunchParams calldata params)
@@ -228,22 +280,28 @@ contract ScoopFactory is ReentrancyGuard {
         );
     }
 
-    function _initPoolAndLockLiquidity(address token, address liquidityLocker)
+    function _initPoolAndLockLiquidity(LaunchResult memory result, ScoopLaunchMath.LaunchPricing memory pricing)
         internal
         returns (uint256 lpTokenId, PoolId poolId)
     {
-        PoolKey memory key = _poolKey(token);
-        poolManager.initialize(key, _initialSqrtPriceX96());
-        lpTokenId = _mintOneSidedLiquidity(key, token, liquidityLocker);
+        PoolKey memory key = _poolKey(result.token, result.quoteAsset);
+        poolManager.initialize(key, pricing.sqrtPriceX96);
+        lpTokenId = _mintOneSidedLiquidity(key, result.token, result.liquidityLocker, pricing);
         poolId = key.toId();
 
-        if (IERC721(address(positionManager)).ownerOf(lpTokenId) != liquidityLocker) {
+        if (IERC721(address(positionManager)).ownerOf(lpTokenId) != result.liquidityLocker) {
             revert FactoryRetainedLpNft(lpTokenId);
         }
 
-        uint256 remaining = IERC20(token).balanceOf(address(this));
+        uint256 remaining = IERC20(result.token).balanceOf(address(this));
         if (remaining != 0) {
-            IERC20(token).safeTransfer(address(0x000000000000000000000000000000000000dEaD), remaining);
+            IERC20(result.token).safeTransfer(address(0x000000000000000000000000000000000000dEaD), remaining);
+        }
+
+        // Factory must not retain quote principal from the launch path.
+        if (result.quoteAsset != address(0)) {
+            uint256 quoteBal = IERC20(result.quoteAsset).balanceOf(address(this));
+            if (quoteBal != 0) revert QuotePrincipalNotZero(result.quoteAsset, quoteBal);
         }
     }
 
@@ -252,42 +310,61 @@ contract ScoopFactory is ReentrancyGuard {
             token: result.token,
             deployer: msg.sender,
             creatorId: params.creatorId,
+            quoteAsset: result.quoteAsset,
             feeDistributor: result.feeDistributor,
             liquidityLocker: result.liquidityLocker,
             poolId: result.poolId,
             lpTokenId: result.lpTokenId,
+            openingSqrtPriceX96: result.openingSqrtPriceX96,
+            openingTick: result.openingTick,
+            tickLower: result.tickLower,
+            tickUpper: result.tickUpper,
             createdAt: uint64(block.timestamp)
         });
 
+        _emitTokenLaunched(params.creatorId, params.name, params.symbol, result);
+    }
+
+    function _emitTokenLaunched(
+        bytes32 creatorId,
+        string calldata name,
+        string calldata symbol,
+        LaunchResult memory result
+    ) internal {
         emit TokenLaunched(
             result.token,
             msg.sender,
-            params.creatorId,
+            creatorId,
+            result.quoteAsset,
             result.feeDistributor,
             result.liquidityLocker,
             result.poolId,
             result.lpTokenId,
-            params.name,
-            params.symbol
+            result.openingSqrtPriceX96,
+            result.openingTick,
+            result.tickLower,
+            result.tickUpper,
+            name,
+            symbol
         );
     }
 
     /// @dev Exact-input ETH→token buy on the just-created pool; tokens forwarded to msg.sender.
-    function _executeInitialBuy(address token, uint256 ethIn, uint256 minTokensOut)
+    function _executeInitialBuy(address token, address quoteAsset, uint256 ethIn, uint256 minTokensOut)
         internal
         returns (uint256 tokensBought)
     {
         address buyer = msg.sender;
         uint256 buyerBefore = IERC20(token).balanceOf(buyer);
 
-        PoolKey memory key = _poolKey(token);
+        PoolKey memory key = _poolKey(token, quoteAsset);
+        // Native ETH is always currency0 vs any ScoopToken.
         bytes memory commands = abi.encodePacked(CMD_V4_SWAP);
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = _encodeV4ExactInSingle(key, uint128(ethIn), uint128(minTokensOut));
+        inputs[0] = _encodeV4ExactInSingle(key, true, uint128(ethIn), uint128(minTokensOut));
 
         universalRouter.execute{value: ethIn}(commands, inputs, block.timestamp + 60);
 
-        // Universal Router TAKE_ALL credits the execute caller (this factory).
         uint256 factoryBal = IERC20(token).balanceOf(address(this));
         if (factoryBal != 0) {
             IERC20(token).safeTransfer(buyer, factoryBal);
@@ -303,27 +380,28 @@ contract ScoopFactory is ReentrancyGuard {
         }
     }
 
-    function _encodeV4ExactInSingle(PoolKey memory key, uint128 amountIn, uint128 amountOutMinimum)
+    function _encodeV4ExactInSingle(PoolKey memory key, bool zeroForOne, uint128 amountIn, uint128 amountOutMinimum)
         internal
         pure
         returns (bytes memory)
     {
-        bytes memory actions = abi.encodePacked(
-            uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL)
-        );
+        bytes memory actions =
+            abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
         bytes[] memory params = new bytes[](3);
         params[0] = abi.encode(
             IV4Router.ExactInputSingleParams({
                 poolKey: key,
-                zeroForOne: true,
+                zeroForOne: zeroForOne,
                 amountIn: amountIn,
                 amountOutMinimum: amountOutMinimum,
                 minHopPriceX36: 0,
                 hookData: bytes("")
             })
         );
-        params[1] = abi.encode(key.currency0, uint256(amountIn));
-        params[2] = abi.encode(key.currency1, uint256(amountOutMinimum));
+        Currency settleCurrency = zeroForOne ? key.currency0 : key.currency1;
+        Currency takeCurrency = zeroForOne ? key.currency1 : key.currency0;
+        params[1] = abi.encode(settleCurrency, uint256(amountIn));
+        params[2] = abi.encode(takeCurrency, uint256(amountOutMinimum));
         return abi.encode(actions, params);
     }
 
@@ -335,36 +413,43 @@ contract ScoopFactory is ReentrancyGuard {
         return launches[token];
     }
 
-    /// @dev Opening sqrt price. Isolated for later production valuation replacement.
-    function _initialSqrtPriceX96() internal pure returns (uint160) {
-        return TickMath.getSqrtPriceAtTick(0);
-    }
-
-    /// @dev Native ETH is address(0) and always sorts as currency0 vs any ScoopToken.
-    function _poolKey(address token) internal pure returns (PoolKey memory key) {
-        Currency eth = CurrencyLibrary.ADDRESS_ZERO;
+    /// @dev Sort quote + launched token into Uniswap v4 PoolKey currency order.
+    function _poolKey(address token, address quoteAsset) internal pure returns (PoolKey memory key) {
+        Currency quote = Currency.wrap(quoteAsset);
         Currency scoop = Currency.wrap(token);
-        if (!(eth < scoop)) revert UnexpectedCurrencyOrder();
+        Currency currency0;
+        Currency currency1;
+        if (quote < scoop) {
+            currency0 = quote;
+            currency1 = scoop;
+        } else {
+            currency0 = scoop;
+            currency1 = quote;
+        }
 
         key = PoolKey({
-            currency0: eth, currency1: scoop, fee: LP_FEE, tickSpacing: TICK_SPACING, hooks: IHooks(address(0))
+            currency0: currency0,
+            currency1: currency1,
+            fee: LP_FEE,
+            tickSpacing: TICK_SPACING,
+            hooks: IHooks(address(0))
         });
     }
 
-    function _mintOneSidedLiquidity(PoolKey memory key, address token, address liquidityLocker)
-        internal
-        returns (uint256 tokenId)
-    {
+    function _mintOneSidedLiquidity(
+        PoolKey memory key,
+        address token,
+        address liquidityLocker,
+        ScoopLaunchMath.LaunchPricing memory pricing
+    ) internal returns (uint256 tokenId) {
         uint256 supply = ScoopToken(token).MAX_SUPPLY();
 
         IERC20(token).forceApprove(address(permit2), supply);
         permit2.approve(token, address(positionManager), uint160(supply), type(uint48).max);
 
-        uint160 sqrtLower = TickMath.getSqrtPriceAtTick(TICK_LOWER);
-        uint160 sqrtUpper = TickMath.getSqrtPriceAtTick(TICK_UPPER);
-        uint128 liquidity = LiquidityAmounts.getLiquidityForAmount1(sqrtLower, sqrtUpper, supply);
-
         tokenId = positionManager.nextTokenId();
+
+        (uint128 liquidity, uint128 amount0Max, uint128 amount1Max) = _liquidityParams(pricing, supply);
 
         bytes memory actions = new bytes(2);
         actions[0] = bytes1(uint8(Actions.MINT_POSITION));
@@ -372,12 +457,35 @@ contract ScoopFactory is ReentrancyGuard {
 
         bytes[] memory params = new bytes[](2);
         params[0] = abi.encode(
-            key, TICK_LOWER, TICK_UPPER, uint256(liquidity), uint128(0), uint128(supply), liquidityLocker, bytes("")
+            key,
+            pricing.tickLower,
+            pricing.tickUpper,
+            uint256(liquidity),
+            amount0Max,
+            amount1Max,
+            liquidityLocker,
+            bytes("")
         );
         params[1] = abi.encode(key.currency0, key.currency1);
 
         positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp + 60);
 
         IERC20(token).forceApprove(address(permit2), 0);
+    }
+
+    function _liquidityParams(ScoopLaunchMath.LaunchPricing memory pricing, uint256 supply)
+        internal
+        pure
+        returns (uint128 liquidity, uint128 amount0Max, uint128 amount1Max)
+    {
+        uint160 sqrtLower = TickMath.getSqrtPriceAtTick(pricing.tickLower);
+        uint160 sqrtUpper = TickMath.getSqrtPriceAtTick(pricing.tickUpper);
+        if (pricing.launchedIsCurrency1) {
+            liquidity = LiquidityAmounts.getLiquidityForAmount1(sqrtLower, sqrtUpper, supply);
+            amount1Max = uint128(supply);
+        } else {
+            liquidity = LiquidityAmounts.getLiquidityForAmount0(sqrtLower, sqrtUpper, supply);
+            amount0Max = uint128(supply);
+        }
     }
 }
