@@ -148,8 +148,9 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         console2.log("ETH FDV", fdv);
 
         assertApproxEqRel(fdv, 5_000e18, FDV_REL_TOL);
-        assertTrue(rec.tickUpper < rec.openingTick);
-        assertEq(int256(rec.tickUpper - rec.tickLower), 200);
+        assertTrue(rec.tickUpper <= rec.openingTick);
+        assertEq(int256(rec.tickLower), int256(TickMath.minUsableTick(10)));
+        assertGt(int256(rec.tickUpper - rec.tickLower), int256(10));
 
         (uint160 liveSqrt,,,) = IPoolManager(POOL_MANAGER_ADDR).getSlot0(poolId);
         assertEq(liveSqrt, rec.openingSqrtPriceX96);
@@ -158,11 +159,12 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
     function test_ethLaunchUsesDynamicOneSidedTicks() public {
         (address token,,,,) = _launchEth("Dyn", "DYN", bytes32(uint256(3)));
         ScoopFactory.Launch memory rec = factory.getLaunch(token);
-        assertTrue(rec.tickLower % 200 == 0);
-        assertTrue(rec.tickUpper % 200 == 0);
-        assertTrue(rec.tickUpper < rec.openingTick);
-        // Must not be the legacy fixed range unless opening happens to land there.
-        assertFalse(rec.openingTick == 0 && rec.tickLower == -400 && rec.tickUpper == -200);
+        assertTrue(rec.tickLower % 10 == 0);
+        assertTrue(rec.tickUpper % 10 == 0);
+        assertTrue(rec.tickUpper <= rec.openingTick);
+        assertEq(int256(rec.tickLower), int256(TickMath.minUsableTick(10)));
+        // Must not be the legacy fixed narrow range.
+        assertFalse(rec.tickUpper - rec.tickLower == 200);
     }
 
     function test_ethLaunchRequiresZeroQuotePrincipal() public {
@@ -182,7 +184,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         assertTrue(token > AAPL_TOKEN);
         ScoopFactory.Launch memory rec = factory.getLaunch(token);
         assertEq(rec.quoteAsset, AAPL_TOKEN);
-        assertTrue(rec.tickUpper < rec.openingTick);
+        assertTrue(rec.tickUpper <= rec.openingTick);
 
         (PoolKey memory key,) = IPositionManager(POSITION_MANAGER_ADDR).getPoolAndPositionInfo(lpId);
         assertEq(Currency.unwrap(key.currency0), AAPL_TOKEN);
@@ -562,9 +564,9 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         Currency a = Currency.wrap(quote);
         Currency b = Currency.wrap(token);
         if (a < b) {
-            key = PoolKey({currency0: a, currency1: b, fee: 10_000, tickSpacing: 200, hooks: IHooks(address(0))});
+            key = PoolKey({currency0: a, currency1: b, fee: 10_000, tickSpacing: 10, hooks: IHooks(address(0))});
         } else {
-            key = PoolKey({currency0: b, currency1: a, fee: 10_000, tickSpacing: 200, hooks: IHooks(address(0))});
+            key = PoolKey({currency0: b, currency1: a, fee: 10_000, tickSpacing: 10, hooks: IHooks(address(0))});
         }
     }
 

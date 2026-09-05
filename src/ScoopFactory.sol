@@ -36,8 +36,9 @@ interface IUniversalRouter {
  * @title ScoopFactory
  * @notice Permissionless atomic launch orchestrator for SCOOP Protocol V1.
  * @dev Multi-quote launches against approved ScoopQuoteRegistry assets, priced via ScoopPriceOracle
- *      and ScoopLaunchMath to a fixed ~$5,000 opening FDV. LP is always one-sided launched-token
- *      principal (zero quote principal). `launchAndBuy` supports native ETH and approved ERC-20
+ *      and ScoopLaunchMath to a fixed ~$5,000 opening FDV. LP is always one max-range
+ *      one-sided launched-token position (zero quote principal; tickSpacing = 10).
+ *      `launchAndBuy` supports native ETH and approved ERC-20
  *      quotes via exact-input Universal Router swaps (conventional ERC-20 approve UX; no Permit2 sigs).
  *
  *      Presentation metadata (`LaunchMetadata`) is validated and emitted via `ScoopTokenCreated` for
@@ -53,7 +54,7 @@ contract ScoopFactory is ReentrancyGuard {
     using CurrencyLibrary for Currency;
 
     uint24 public constant LP_FEE = 10_000;
-    int24 public constant TICK_SPACING = 200;
+    int24 public constant TICK_SPACING = 10;
     uint16 public constant CREATOR_REWARDS_BPS = 7000;
     uint16 public constant DEPLOYER_BPS = 400;
     uint16 public constant BUYBACK_BPS = 2000;

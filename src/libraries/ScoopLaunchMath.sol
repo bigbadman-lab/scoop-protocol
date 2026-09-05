@@ -30,11 +30,15 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
  *          price = TOKEN_USD_PRICE * 10^quoteDecimals / (quotePriceUsd * 10^tokenDecimals)
  *
  *      sqrtPriceX96 = sqrt(amount1/amount0) * 2^96 via FullMath + integer sqrt.
+ *      The pool initializes at this exact oracle-derived sqrt — it is NOT quantized to a tick.
  *
- *      One-sided LP: always provide ONLY the launched token.
- *      - launched = currency1 → range strictly BELOW opening tick
- *      - launched = currency0 → range strictly ABOVE opening tick
- *      Range width = one tickSpacing (200), matching the proven [-400,-200] geometry at tick 0.
+ *      One-sided max-range LP (PAR-aligned geometry; SCOOP economics unchanged):
+ *      Always provide ONLY the launched token (quote principal = 0).
+ *      - launched = currency1 → [minUsableTick(spacing), floorToSpacing(openingTick)]
+ *        LiquidityAmounts amount1-only when sqrtPrice >= sqrt(tickUpper).
+ *      - launched = currency0 → [ceilToSpacing(openingTick + 1), maxUsableTick(spacing)]
+ *        LiquidityAmounts amount0-only when sqrtPrice <= sqrt(tickLower).
+ *      Tick spacing = 10 (matches live PAR / Robinhood Uniswap v4 launches).
  *
  *      Stock Token uiMultiplier is NOT applied here — quotePriceUsd from ScoopPriceOracle
  *      is already the correct per-token USD for Robinhood equity feeds.
@@ -45,7 +49,7 @@ library ScoopLaunchMath {
     uint8 internal constant TOKEN_DECIMALS = 18;
     /// @dev TARGET_FDV_USD * 10^TOKEN_DECIMALS / TOKEN_SUPPLY = $0.000005 at 1e18
     uint256 internal constant TOKEN_USD_PRICE = 5e12;
-    int24 internal constant TICK_SPACING = 200;
+    int24 internal constant TICK_SPACING = 10;
 
     error ZeroQuotePrice();
     error IdenticalCurrencies();
@@ -63,7 +67,7 @@ library ScoopLaunchMath {
     }
 
     /**
-     * @notice Compute opening sqrtPriceX96, tick, and one-sided LP range for a $5k FDV launch.
+     * @notice Compute opening sqrtPriceX96, tick, and one-sided max-range LP for a $5k FDV launch.
      * @param launchedToken Address of the new ScoopToken (non-zero).
      * @param quoteAsset Quote asset; `address(0)` = native ETH.
      * @param quoteDecimals ERC20/native decimals of the quote asset (0..18).
@@ -103,10 +107,12 @@ library ScoopLaunchMath {
     }
 
     /**
-     * @notice One-spacing-wide LP range entirely on the launched-token side of `openingTick`.
-     * @dev If launchedIsCurrency1: [floor(open)-spacing, floor strictly below open]
-     *      If launchedIsCurrency0: [ceil strictly above open, that+spacing]
-     *      Opening tick = 0 + currency1 → [-400, -200] (legacy regression).
+     * @notice Max-range one-sided LP bounds on the launched-token side of `openingTick`.
+     * @dev Currency1: tickLower = minUsableTick; tickUpper = floorToSpacing(openingTick)
+     *         (largest spacing-aligned boundary <= openingTick; amount1-only at init).
+     *      Currency0: tickLower = ceilToSpacing(openingTick + 1); tickUpper = maxUsableTick
+     *         (smallest spacing-aligned boundary strictly above openingTick; amount0-only at init).
+     *      Opening-side alignment only — sqrtPriceX96 itself is never quantized here.
      */
     function oneSidedLpTicks(int24 openingTick, bool launchedIsCurrency1)
         internal
@@ -114,21 +120,26 @@ library ScoopLaunchMath {
         returns (int24 tickLower, int24 tickUpper)
     {
         int24 spacing = TICK_SPACING;
+        int24 minU = TickMath.minUsableTick(spacing);
+        int24 maxU = TickMath.maxUsableTick(spacing);
+
         if (launchedIsCurrency1) {
-            // Nearest spacing boundary strictly below opening.
-            tickUpper = floorToSpacing(openingTick - 1, spacing);
-            tickLower = tickUpper - spacing;
+            tickUpper = floorToSpacing(openingTick, spacing);
+            tickLower = minU;
         } else {
-            // Nearest spacing boundary strictly above opening.
             tickLower = ceilToSpacing(openingTick + 1, spacing);
-            tickUpper = tickLower + spacing;
+            tickUpper = maxU;
         }
 
         if (tickLower >= tickUpper) revert TickRangeOutOfBounds();
         if (tickLower % spacing != 0 || tickUpper % spacing != 0) revert TickRangeOutOfBounds();
-        if (tickLower < TickMath.MIN_TICK || tickUpper > TickMath.MAX_TICK) revert TickRangeOutOfBounds();
-        // Ensure sqrt prices exist for both bounds (TickMath requires tick in [MIN_TICK, MAX_TICK]).
-        if (tickUpper - tickLower != spacing) revert TickRangeOutOfBounds();
+        if (tickLower < minU || tickUpper > maxU) revert TickRangeOutOfBounds();
+        // Must still be one-sided relative to opening (not merely a valid Uniswap range).
+        if (launchedIsCurrency1) {
+            if (tickUpper > openingTick) revert TickRangeOutOfBounds();
+        } else {
+            if (tickLower <= openingTick) revert TickRangeOutOfBounds();
+        }
     }
 
     /// @dev Floor tick to a multiple of spacing (toward -∞). Correct for negative ticks.

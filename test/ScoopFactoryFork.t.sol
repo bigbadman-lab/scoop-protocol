@@ -430,7 +430,7 @@ contract ScoopFactoryForkTest is Test {
             currency0: CurrencyLibrary.ADDRESS_ZERO,
             currency1: Currency.wrap(token),
             fee: 10_000,
-            tickSpacing: 200,
+            tickSpacing: 10,
             hooks: IHooks(address(0))
         });
     }
