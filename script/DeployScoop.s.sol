@@ -8,23 +8,23 @@ import {ScoopProtocolDeploy} from "./ScoopProtocolDeploy.sol";
 
 /**
  * @title DeployScoop
- * @notice SCOOP V1 mainnet deployment script (fork/simulation ready).
- * @dev REQUIRED env (no silent defaults):
- *      REGISTRY_AUTHORITY, ORACLE_AUTHORITY, VERIFICATION_AUTHORITY,
- *      LAUNCH_FEE_RECIPIENT, BUYBACK_VAULT, OPERATIONS,
- *      SCOOP_ETH_MAX_AGE, SCOOP_INCLUDE_AAPL_REHEARSAL
- *      If SCOOP_INCLUDE_AAPL_REHEARSAL=true: SCOOP_AAPL_MAX_AGE
+ * @notice LEGACY single-signer REHEARSAL helper (deploy + configure as one sender).
+ * @dev NOT for production multi-signer 5D.
  *
- *      For combined configure in one script run, REGISTRY_AUTHORITY and ORACLE_AUTHORITY
- *      must equal the script sender (use one rehearsal ops key, or split txs in 5D).
+ *      Production flow:
+ *        1) script/DeployScoopGlobals.s.sol      (Scoop Deploy 1)
+ *        2) script/ConfigureScoopProtocol.s.sol (Scoop Auth 1)
  *
- *      Usage (simulation only — Milestone 5C):
- *        forge script script/DeployScoop.s.sol:DeployScoop --rpc-url $ROBINHOOD_RPC_URL -vvvv
+ *      This combined script remains for local/fork convenience when one sender is both
+ *      deployer and authority (must set DEPLOYER_ADDRESS == REGISTRY_AUTHORITY == ORACLE_AUTHORITY).
  *
- *      NEVER pass --broadcast during Milestone 5C.
+ *      NEVER pass --broadcast during 5C / 5C.1.
  */
 contract DeployScoop is Script {
     function run() external {
+        console2.log("WARNING", "DeployScoop is a single-signer REHEARSAL helper, not production multi-signer tooling");
+        console2.log("USE_INSTEAD", "DeployScoopGlobals then ConfigureScoopProtocol");
+
         ScoopProtocolDeploy.requireRobinhoodChain();
         ScoopProtocolDeploy.assertCanonicalExternalBytecode();
 
@@ -33,11 +33,11 @@ contract DeployScoop is Script {
 
         require(
             msg.sender == cfg.registryAuthority && msg.sender == cfg.oracleAuthority,
-            "DeployScoop: msg.sender must equal REGISTRY_AUTHORITY and ORACLE_AUTHORITY for combined configure"
+            "DeployScoop: combined rehearsal requires msg.sender == REGISTRY_AUTHORITY == ORACLE_AUTHORITY"
         );
 
-        // Simulation path: no vm.startBroadcast(). For 5D only, wrap deploys in broadcast.
         ScoopProtocolDeploy.Deployed memory d = ScoopProtocolDeploy.deployGlobals(cfg);
+        ScoopProtocolDeploy.assertGlobalsDeployed(d, cfg);
 
         (uint256 qg, uint256 fg) =
             ScoopProtocolDeploy.configureEthQuoteAndOracle(d.quoteRegistry, d.priceOracle, cfg.ethMaxAge);
@@ -57,11 +57,7 @@ contract DeployScoop is Script {
         console2.log("totalDeploymentGas", ScoopProtocolDeploy.totalDeploymentGas(d.gas));
         console2.log("totalConfigGas", ScoopProtocolDeploy.totalConfigGas(d.gas));
         console2.log("largestTxGas", ScoopProtocolDeploy.largestTxGas(d.gas));
-        console2.log("block.gaslimit", block.gaslimit);
-        console2.log("block.basefee", block.basefee);
-        console2.log("predictedFactoryMatches", address(d.factory) == d.predictedFactory);
-        console2.log("sourceRegistrarIsFactory", d.creatorRewards.sourceRegistrar() == address(d.factory));
-        console2.log("BROADCAST_DISABLED_5C", true);
+        console2.log("BROADCAST_DISABLED", true);
     }
 
     function _loadConfig() internal view returns (ScoopProtocolDeploy.Config memory cfg) {
@@ -72,7 +68,7 @@ contract DeployScoop is Script {
         cfg.buybackVault = vm.envAddress("BUYBACK_VAULT");
         cfg.operations = vm.envAddress("OPERATIONS");
         cfg.ethMaxAge = uint48(vm.envUint("SCOOP_ETH_MAX_AGE"));
-        cfg.includeAaplRehearsal = vm.envBool("SCOOP_INCLUDE_AAPL_REHEARSAL");
+        cfg.includeAaplRehearsal = vm.envOr("SCOOP_INCLUDE_AAPL_REHEARSAL", false);
         if (cfg.includeAaplRehearsal) {
             cfg.aaplMaxAge = uint48(vm.envUint("SCOOP_AAPL_MAX_AGE"));
         }

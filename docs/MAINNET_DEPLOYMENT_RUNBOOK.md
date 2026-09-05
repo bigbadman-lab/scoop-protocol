@@ -1,46 +1,88 @@
 # SCOOP V1 — Mainnet Deployment Runbook (5D)
 
-**Pre-mainnet rule:** rehearse on a current Robinhood fork first. 5C did not broadcast.
+**Pre-mainnet rule:** rehearse on a current Robinhood fork first. 5C / 5C.1 did not broadcast.
+
+**Operator mantra:**
+
+```text
+Scoop Deploy 1 deploys globals.
+Scoop Auth 1 configures ETH quote/oracle.
+Scoop Verify 1 does neither.
+Mandatory human STOP between Phase A and Phase B.
+No one-shot deploy+configure broadcast.
+```
 
 ## 0. Preflight
 
 1. Checkout pinned commit from checklist.
 2. `forge test` green; RPC `eth_chainId == 0x1237` (4663).
 3. Confirm bytecode at PoolManager / PositionManager / UniversalRouter / Permit2.
-4. Confirm final authorities + payable recipients; send 0.01 ETH test transfers to recipients.
-5. Set `.env` with FINAL values only (no silent defaults).
-6. Generate HELLO salt offline; do not disclose early.
-7. Confirm HELLO production image CID.
+4. Confirm FINAL role mapping in `.env` (Deploy ≠ Auth ≠ Verify).
+5. Confirm payable recipients (EOA or proven `receive`); send 0.01 ETH test transfers.
+6. Record Scoop Deploy 1 current nonce; avoid unrelated txs until Phase A completes.
+7. Set `SCOOP_ETH_MAX_AGE=86400` (proposed production) and `SCOOP_BROADCAST=false` until ready.
+8. Generate HELLO salt offline; do not disclose early.
+9. Confirm HELLO production image CID.
 
-## 1. Deploy globals (broadcast)
+## 1. Phase A — Scoop Deploy 1 broadcasts globals
 
-Order (via `forge script script/DeployScoop.s.sol:DeployScoop --broadcast` **only in 5D**):
+```bash
+set -a && source .env && set +a
+SCOOP_BROADCAST=true forge script script/DeployScoopGlobals.s.sol:DeployScoopGlobals \
+  --rpc-url "$ROBINHOOD_RPC_URL" \
+  --sender "$DEPLOYER_ADDRESS" \
+  --broadcast -vvvv
+```
+
+Deploys only:
 
 1. CreatorRegistry  
 2. TokenDeployer  
 3. LaunchDeployer  
 4. QuoteRegistry  
 5. PriceOracle  
-6. Configure ETH quote + oracle (`maxAge` approved)  
-7. Optional approved non-ETH quotes (explicit)  
-8. FactoryDeployer → CreatorRewards + Factory  
+6. FactoryDeployer → CreatorRewards + Factory  
 
-If `registryAuthority != oracleAuthority`, split configure txs per key.
+Does **not** register quotes or configure feeds.
 
-## 2. Verify addresses
+### STOP after Phase A
 
-- Manifest every address  
-- `predictedFactory == factory`  
-- `sourceRegistrar == factory`  
-- All Factory immutables  
-- ETH registered/enabled; feed fresh; `getPriceUsd(0) > 0`
+- Copy full deployment manifest into secure ops notes + `.env` handoff vars  
+- Verify code at every address  
+- Assert immutables / authorities / `predictedFactory` / `sourceRegistrar`  
+- Confirm ETH is still **unregistered / unconfigured**  
+- Do not proceed until a second human confirms the handoff  
+
+## 2. Phase B — Scoop Auth 1 configures ETH only
+
+```bash
+# Ensure SCOOP_QUOTE_REGISTRY + SCOOP_PRICE_ORACLE are set from Phase A
+SCOOP_BROADCAST=true forge script script/ConfigureScoopProtocol.s.sol:ConfigureScoopProtocol \
+  --rpc-url "$ROBINHOOD_RPC_URL" \
+  --sender "$REGISTRY_AUTHORITY" \
+  --broadcast -vvvv
+```
+
+Configures only:
+
+- Native ETH quote (`address(0)`)  
+- Canonical ETH/USD feed `0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9`  
+- `maxAge == 86400`  
+
+Does **not** enable AAPL. Does **not** deploy contracts.
+
+### STOP after Phase B
+
+- Verify quote registered/enabled + Native  
+- Verify feed address / enabled / maxAge / `getPriceUsd(0) > 0`  
+- Confirm AAPL not production-registered by this path  
 
 ## 3. Verify source (explorer)
 
 - Submit global contracts with constructor args  
 - Record solc 0.8.26 / via_ir / optimizer 200  
 
-## 4. Launch HELLO (canary)
+## 4. Launch HELLO (canary) — separate step
 
 1. Fresh salt  
 2. Wallet creator ≠ protocol authorities  
@@ -52,7 +94,33 @@ If `registryAuthority != oracleAuthority`, split configure txs per key.
 
 **Do not** proceed to public launches. Hand off to **5E forensic review**.
 
+## Simulation (no broadcast) — 5C.1
+
+```bash
+forge script script/DeployScoopGlobals.s.sol:DeployScoopGlobals \
+  --rpc-url "$ROBINHOOD_RPC_URL" --sender "$DEPLOYER_ADDRESS" -vvvv
+
+forge script script/ConfigureScoopProtocol.s.sol:ConfigureScoopProtocol \
+  --rpc-url "$ROBINHOOD_RPC_URL" --sender "$REGISTRY_AUTHORITY" -vvvv
+```
+
+Separate script processes do not share ephemeral CREATE state. End-to-end two-signer persistence is proven by:
+
+```text
+test/deployment/ScoopMultiSignerDeploymentFork.t.sol
+```
+
+## Legacy combined script
+
+`script/DeployScoop.s.sol` is a single-signer **rehearsal** helper only. Do not use it for production multi-signer 5D.
+
 ## Operational rules
+
+### CREATE / nonce (Phase A)
+```text
+mainnet addresses = f(Scoop Deploy 1, nonce, tx sequence)
+record nonce before Phase A; avoid unrelated Deploy 1 txs mid-deploy
+```
 
 ### CREATE2 grief (F-01)
 ```text
@@ -65,7 +133,7 @@ If launch reverts on CREATE2: generate new salt and retry.
 ```text
 verificationAuthority compromise can steal unclaimed X creator rewards.
 ```
-Keep offline / multisig / HSM. No day-to-day hot wallet.
+Keep offline / multisig / HSM. No day-to-day hot wallet. Verify 1 must not hold registry/oracle authority.
 
 ### Rejecting recipients (F-03 / F-04)
 - Shared buyback/ops reject → ETH `distribute` DoS **globally**  
