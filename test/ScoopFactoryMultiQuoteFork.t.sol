@@ -388,7 +388,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
-        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.01 ether}(params, 1);
+        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
         console2.log("ETH launchAndBuy gas", gasBefore - gasleft());
         assertGt(bought, 0);
         assertEq(IERC20(token).balanceOf(deployer), bought);
@@ -398,19 +398,26 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         assertApproxEqRel(fdv, 5_000e18, FDV_REL_TOL);
     }
 
-    function test_launchAndBuyRejectsAaplAtomically() public {
+    function test_launchAndBuyAcceptsAaplWithApproval() public {
+        // 4G: ERC-20 initial buy is supported when deployer approves Factory.
+        bytes32 salt = _findSalt("BuyAapl", "BA", true);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
             name: "BuyAapl",
             symbol: "BA",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
-            salt: bytes32(uint256(105))
+            salt: salt
         });
-        uint256 ethBefore = deployer.balance;
+        uint256 aaplIn = 0.1e18;
+        deal(AAPL_TOKEN, deployer, aaplIn);
         vm.prank(deployer);
-        vm.expectRevert(ScoopFactory.InitialBuyOnlySupportedForNativeQuote.selector);
-        factory.launchAndBuy{value: 0.01 ether}(params, 1);
-        assertEq(deployer.balance, ethBefore);
+        IERC20(AAPL_TOKEN).approve(address(factory), aaplIn);
+
+        vm.prank(deployer);
+        (address token,,,,, uint256 bought) = factory.launchAndBuy(params, aaplIn, 1);
+        assertGt(bought, 0);
+        assertEq(IERC20(token).balanceOf(deployer), bought);
+        assertEq(IERC20(AAPL_TOKEN).balanceOf(address(factory)), 0);
     }
 
     function test_invalidQuoteDecimalsRevertsAtomically() public {

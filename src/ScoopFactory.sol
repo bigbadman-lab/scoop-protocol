@@ -37,7 +37,8 @@ interface IUniversalRouter {
  * @notice Permissionless atomic launch orchestrator for SCOOP Protocol V1.
  * @dev Multi-quote launches against approved ScoopQuoteRegistry assets, priced via ScoopPriceOracle
  *      and ScoopLaunchMath to a fixed ~$5,000 opening FDV. LP is always one-sided launched-token
- *      principal (zero quote principal). `launchAndBuy` remains ETH-only (`quoteAsset == address(0)`).
+ *      principal (zero quote principal). `launchAndBuy` supports native ETH and approved ERC-20
+ *      quotes via exact-input Universal Router swaps (conventional ERC-20 approve UX; no Permit2 sigs).
  *
  *      Deployer attribution is always `msg.sender` (4% fee leg). Creator attribution is the
  *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration.
@@ -66,13 +67,15 @@ contract ScoopFactory is ReentrancyGuard {
     error InvalidSourceRegistrar();
     error FactoryRetainedLpNft(uint256 tokenId);
     error ZeroInitialBuy();
+    error IncorrectNativeValue(uint256 expected, uint256 actual);
+    error UnexpectedNativeValue();
+    error UnsupportedTransferBehavior();
     error InsufficientTokensOut(uint256 actual, uint256 minimum);
     error NativeRefundFailed();
     error QuoteNotRegistered(address quoteAsset);
     error QuoteNotEnabled(address quoteAsset);
     error UnsupportedQuoteDecimals(uint8 decimals);
-    error InitialBuyOnlySupportedForNativeQuote();
-    error QuotePrincipalNotZero(address quoteAsset, uint256 balance);
+    error QuotePrincipalNotZero(address quoteAsset, uint256 delta);
 
     IPoolManager public immutable poolManager;
     IPositionManager public immutable positionManager;
@@ -142,7 +145,13 @@ contract ScoopFactory is ReentrancyGuard {
         string symbol
     );
 
-    event InitialBuyExecuted(address indexed token, address indexed deployer, uint256 ethIn, uint256 tokensOut);
+    event InitialBuyExecuted(
+        address indexed token,
+        address indexed deployer,
+        address indexed quoteAsset,
+        uint256 quoteAmountIn,
+        uint256 tokensOut
+    );
 
     constructor(
         address poolManager_,
@@ -194,10 +203,13 @@ contract ScoopFactory is ReentrancyGuard {
     }
 
     /**
-     * @notice Atomically launch then buy launched tokens with `msg.value` ETH.
-     * @dev Native ETH quote only. ERC20 quotes must use `launch` then trade separately.
+     * @notice Atomically launch then buy launched tokens with quote asset.
+     * @dev Native: `quoteAsset == address(0)` and `msg.value == quoteAmountIn`.
+     *      ERC-20: `msg.value == 0`; Factory pulls `quoteAmountIn` from `msg.sender` after launch
+     *      validation (policy/oracle) succeeds, then swaps via Permit2 → Universal Router.
+     *      Fee-on-transfer quotes are rejected (`actualReceived` must equal `quoteAmountIn`).
      */
-    function launchAndBuy(LaunchParams calldata params, uint256 minTokensOut)
+    function launchAndBuy(LaunchParams calldata params, uint256 quoteAmountIn, uint256 minTokensOut)
         external
         payable
         nonReentrant
@@ -210,13 +222,23 @@ contract ScoopFactory is ReentrancyGuard {
             uint256 tokensBought
         )
     {
-        if (params.quoteAsset != address(0)) revert InitialBuyOnlySupportedForNativeQuote();
-        if (msg.value == 0) revert ZeroInitialBuy();
+        if (quoteAmountIn == 0) revert ZeroInitialBuy();
+        if (params.quoteAsset == address(0)) {
+            if (msg.value != quoteAmountIn) revert IncorrectNativeValue(quoteAmountIn, msg.value);
+        } else if (msg.value != 0) {
+            revert UnexpectedNativeValue();
+        }
 
+        // Launch validates quote policy + oracle before any ERC-20 pull.
         LaunchResult memory result = _launch(params);
-        tokensBought = _executeInitialBuy(result.token, result.quoteAsset, msg.value, minTokensOut);
 
-        emit InitialBuyExecuted(result.token, msg.sender, msg.value, tokensBought);
+        if (params.quoteAsset != address(0)) {
+            _pullExactQuote(params.quoteAsset, quoteAmountIn);
+        }
+
+        tokensBought = _executeInitialBuy(result.token, result.quoteAsset, quoteAmountIn, minTokensOut);
+
+        emit InitialBuyExecuted(result.token, msg.sender, result.quoteAsset, quoteAmountIn, tokensBought);
 
         return
             (result.token, result.feeDistributor, result.liquidityLocker, result.lpTokenId, result.poolId, tokensBought);
@@ -284,6 +306,12 @@ contract ScoopFactory is ReentrancyGuard {
         internal
         returns (uint256 lpTokenId, PoolId poolId)
     {
+        // Preserve any pre-existing quote balance; LP must not consume or produce quote principal.
+        uint256 quoteBalBefore;
+        if (result.quoteAsset != address(0)) {
+            quoteBalBefore = IERC20(result.quoteAsset).balanceOf(address(this));
+        }
+
         PoolKey memory key = _poolKey(result.token, result.quoteAsset);
         poolManager.initialize(key, pricing.sqrtPriceX96);
         lpTokenId = _mintOneSidedLiquidity(key, result.token, result.liquidityLocker, pricing);
@@ -298,11 +326,23 @@ contract ScoopFactory is ReentrancyGuard {
             IERC20(result.token).safeTransfer(address(0x000000000000000000000000000000000000dEaD), remaining);
         }
 
-        // Factory must not retain quote principal from the launch path.
         if (result.quoteAsset != address(0)) {
-            uint256 quoteBal = IERC20(result.quoteAsset).balanceOf(address(this));
-            if (quoteBal != 0) revert QuotePrincipalNotZero(result.quoteAsset, quoteBal);
+            uint256 quoteBalAfter = IERC20(result.quoteAsset).balanceOf(address(this));
+            if (quoteBalAfter != quoteBalBefore) {
+                revert QuotePrincipalNotZero(
+                    result.quoteAsset,
+                    quoteBalAfter > quoteBalBefore ? quoteBalAfter - quoteBalBefore : quoteBalBefore - quoteBalAfter
+                );
+            }
         }
+    }
+
+    /// @dev Exact pull; rejects fee-on-transfer / rebasing shortfalls.
+    function _pullExactQuote(address quoteAsset, uint256 quoteAmountIn) internal {
+        uint256 before = IERC20(quoteAsset).balanceOf(address(this));
+        IERC20(quoteAsset).safeTransferFrom(msg.sender, address(this), quoteAmountIn);
+        uint256 received = IERC20(quoteAsset).balanceOf(address(this)) - before;
+        if (received != quoteAmountIn) revert UnsupportedTransferBehavior();
     }
 
     function _finalizeLaunch(LaunchParams calldata params, LaunchResult memory result) internal {
@@ -349,21 +389,34 @@ contract ScoopFactory is ReentrancyGuard {
         );
     }
 
-    /// @dev Exact-input ETH→token buy on the just-created pool; tokens forwarded to msg.sender.
-    function _executeInitialBuy(address token, address quoteAsset, uint256 ethIn, uint256 minTokensOut)
+    /// @dev Exact-input quote→token buy; purchased ScoopToken forwarded to msg.sender.
+    function _executeInitialBuy(address token, address quoteAsset, uint256 quoteAmountIn, uint256 minTokensOut)
         internal
         returns (uint256 tokensBought)
     {
         address buyer = msg.sender;
         uint256 buyerBefore = IERC20(token).balanceOf(buyer);
+        uint256 quoteBaseline;
+        if (quoteAsset != address(0)) {
+            // Balance includes the exact amount just pulled for this buy.
+            quoteBaseline = IERC20(quoteAsset).balanceOf(address(this)) - quoteAmountIn;
+        }
 
         PoolKey memory key = _poolKey(token, quoteAsset);
-        // Native ETH is always currency0 vs any ScoopToken.
+        // Economic action is always quote → launched token.
+        bool zeroForOne = Currency.unwrap(key.currency0) == quoteAsset;
+
         bytes memory commands = abi.encodePacked(CMD_V4_SWAP);
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = _encodeV4ExactInSingle(key, true, uint128(ethIn), uint128(minTokensOut));
+        inputs[0] = _encodeV4ExactInSingle(key, zeroForOne, uint128(quoteAmountIn), uint128(minTokensOut));
 
-        universalRouter.execute{value: ethIn}(commands, inputs, block.timestamp + 60);
+        if (quoteAsset == address(0)) {
+            universalRouter.execute{value: quoteAmountIn}(commands, inputs, block.timestamp + 60);
+        } else {
+            _approveQuoteForRouter(quoteAsset, quoteAmountIn);
+            universalRouter.execute(commands, inputs, block.timestamp + 60);
+            _clearQuoteApprovals(quoteAsset);
+        }
 
         uint256 factoryBal = IERC20(token).balanceOf(address(this));
         if (factoryBal != 0) {
@@ -373,11 +426,28 @@ contract ScoopFactory is ReentrancyGuard {
         tokensBought = IERC20(token).balanceOf(buyer) - buyerBefore;
         if (tokensBought < minTokensOut) revert InsufficientTokensOut(tokensBought, minTokensOut);
 
-        uint256 leftoverEth = address(this).balance;
-        if (leftoverEth != 0) {
-            (bool ok,) = buyer.call{value: leftoverEth}("");
-            if (!ok) revert NativeRefundFailed();
+        if (quoteAsset == address(0)) {
+            uint256 leftoverEth = address(this).balance;
+            if (leftoverEth != 0) {
+                (bool ok,) = buyer.call{value: leftoverEth}("");
+                if (!ok) revert NativeRefundFailed();
+            }
+        } else if (IERC20(quoteAsset).balanceOf(address(this)) != quoteBaseline) {
+            // Exact-input must consume the pulled amount; never spend pre-existing Factory quote.
+            revert UnsupportedTransferBehavior();
         }
+    }
+
+    function _approveQuoteForRouter(address quoteAsset, uint256 quoteAmountIn) internal {
+        IERC20(quoteAsset).forceApprove(address(permit2), quoteAmountIn);
+        permit2.approve(quoteAsset, address(universalRouter), uint160(quoteAmountIn), uint48(block.timestamp + 60));
+    }
+
+    function _clearQuoteApprovals(address quoteAsset) internal {
+        IERC20(quoteAsset).forceApprove(address(permit2), 0);
+        // Permit2 treats expiration==0 as `block.timestamp` (same-block only). Use amount=0 and an
+        // already-expired timestamp so residual Universal Router authority is unusable.
+        permit2.approve(quoteAsset, address(universalRouter), 0, 1);
     }
 
     function _encodeV4ExactInSingle(PoolKey memory key, bool zeroForOne, uint128 amountIn, uint128 amountOutMinimum)
