@@ -28,7 +28,7 @@ import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 
 /**
- * @notice Robinhood fork: ScoopFactory launch presentation metadata / terminal discovery (4H).
+ * @notice Robinhood fork: ScoopFactory launch presentation metadata / terminal discovery (4K).
  */
 contract ScoopFactoryMetadataForkTest is Test {
     using StateLibrary for IPoolManager;
@@ -61,7 +61,7 @@ contract ScoopFactoryMetadataForkTest is Test {
     address walletCreator;
     bytes32 walletCreatorId;
 
-    event ScoopTokenCreated(address indexed token, string description, string externalUrl, string imageUri);
+    event ScoopTokenCreated(address indexed token, string description, string website, string imageUri);
     event TokenLaunched(
         address indexed token,
         address indexed deployer,
@@ -132,41 +132,42 @@ contract ScoopFactoryMetadataForkTest is Test {
         ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.defaultMetadata();
         vm.recordLogs();
         (address token,,,,) = _launchEth("Meta", "META", bytes32(uint256(1)), md);
-        (address decoded, string memory d, string memory u, string memory img) =
+        (address decoded, string memory d, string memory website, string memory img) =
             _decodeScoopTokenCreated(vm.getRecordedLogs());
         assertEq(decoded, token);
         assertEq(d, md.description);
-        assertEq(u, md.externalUrl);
+        assertEq(website, md.website);
         assertEq(img, md.imageUri);
+        _assertTokenMatchesEvent(token, d, website, img);
     }
 
     function test_metadataEventTokenMatchesActualToken() public {
         ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.defaultMetadata();
         vm.recordLogs();
         (address token,,,,) = _launchEth("Tok2", "TK2", bytes32(uint256(3)), md);
-        (address decoded, string memory d, string memory u, string memory i) =
+        (address decoded, string memory d, string memory website, string memory i) =
             _decodeScoopTokenCreated(vm.getRecordedLogs());
         assertEq(decoded, token);
         assertEq(d, md.description);
-        assertEq(u, md.externalUrl);
+        assertEq(website, md.website);
         assertEq(i, md.imageUri);
         assertEq(token, address(ScoopToken(token)));
+        _assertTokenMatchesEvent(token, d, website, i);
     }
 
     function test_eventCanBeDecodedByIndexer() public {
-        ScoopFactory.LaunchMetadata memory md = ScoopFactory.LaunchMetadata({
-            description: "Indexer decode probe",
-            externalUrl: "https://example.com/x",
-            imageUri: "ipfs://bafy-indexer-decode-probe"
-        });
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(
+            "Indexer decode probe", "https://example.com/x", "ipfs://bafy-indexer-decode-probe"
+        );
         vm.recordLogs();
         (address token,,,,) = _launchEth("Idx", "IDX", bytes32(uint256(4)), md);
-        (address decoded, string memory d, string memory u, string memory img) =
+        (address decoded, string memory d, string memory website, string memory img) =
             _decodeScoopTokenCreated(vm.getRecordedLogs());
         assertEq(decoded, token);
         assertEq(d, "Indexer decode probe");
-        assertEq(u, "https://example.com/x");
+        assertEq(website, "https://example.com/x");
         assertEq(img, "ipfs://bafy-indexer-decode-probe");
+        _assertTokenMatchesEvent(token, d, website, img);
     }
 
     function test_metadataEventTokenMatchesTokenLaunched() public {
@@ -190,12 +191,10 @@ contract ScoopFactoryMetadataForkTest is Test {
     }
 
     function test_twoLaunchesCannotCrossAssociateImages() public {
-        ScoopFactory.LaunchMetadata memory alpha = ScoopFactory.LaunchMetadata({
-            description: "Alpha token", externalUrl: "https://alpha.example", imageUri: "ipfs://bafy-alpha"
-        });
-        ScoopFactory.LaunchMetadata memory beta = ScoopFactory.LaunchMetadata({
-            description: "Beta token", externalUrl: "https://beta.example", imageUri: "ipfs://bafy-beta"
-        });
+        ScoopFactory.LaunchMetadata memory alpha =
+            ScoopLaunchMetadataHelpers.metadata("Alpha token", "https://alpha.example", "ipfs://bafy-alpha");
+        ScoopFactory.LaunchMetadata memory beta =
+            ScoopLaunchMetadataHelpers.metadata("Beta token", "https://beta.example", "ipfs://bafy-beta");
 
         vm.recordLogs();
         (address tokenA,,,,) = _launchEth("Alpha", "ALPHA", bytes32(uint256(10)), alpha);
@@ -218,25 +217,22 @@ contract ScoopFactoryMetadataForkTest is Test {
         assertTrue(keccak256(bytes(aImg)) != keccak256(bytes(bImg)));
     }
 
-    function test_metadataDoesNotChangeCreate2Identity() public {
-        ScoopFactory.LaunchMetadata memory md1 = ScoopFactory.LaunchMetadata({
-            description: "First description", externalUrl: "https://one.example", imageUri: "ipfs://bafy-one"
-        });
-        ScoopFactory.LaunchMetadata memory md2 = ScoopFactory.LaunchMetadata({
-            description: "Totally different description text",
-            externalUrl: "https://two.example/path",
-            imageUri: "ipfs://bafy-two-different-cid"
-        });
+    function test_metadataChangesCreate2Identity() public {
+        ScoopFactory.LaunchMetadata memory md1 =
+            ScoopLaunchMetadataHelpers.metadata("First description", "https://one.example", "ipfs://bafy-one");
+        ScoopFactory.LaunchMetadata memory md2 = ScoopLaunchMetadataHelpers.metadata(
+            "Totally different description text", "https://two.example/path", "ipfs://bafy-two-different-cid"
+        );
 
         bytes32 salt = bytes32(uint256(20));
-        address predicted1 = _predictToken("Same", "SAME", salt);
-        address predicted2 = _predictToken("Same", "SAME", salt);
-        assertEq(predicted1, predicted2);
+        address predicted1 = _predictToken("Same", "SAME", salt, md1);
+        address predicted2 = _predictToken("Same", "SAME", salt, md2);
+        assertTrue(predicted1 != predicted2);
 
         (address token,,,,) = _launchEth("Same", "SAME", salt, md1);
         assertEq(token, predicted1);
 
-        // Different metadata, same salt → CREATE2 collision / revert
+        // Different metadata → different token address, but same salt still collides on launch components.
         ScoopFactory.LaunchParams memory params = _ethParams("Same", "SAME", salt, md2);
         vm.prank(deployer);
         vm.expectRevert();
@@ -245,8 +241,7 @@ contract ScoopFactoryMetadataForkTest is Test {
 
     function test_sameSaltDifferentMetadataStillCollides() public {
         ScoopFactory.LaunchMetadata memory a = ScoopLaunchMetadataHelpers.defaultMetadata();
-        ScoopFactory.LaunchMetadata memory b =
-            ScoopFactory.LaunchMetadata({description: "Other", externalUrl: "", imageUri: "ipfs://bafy-other"});
+        ScoopFactory.LaunchMetadata memory b = ScoopLaunchMetadataHelpers.metadata("Other", "", "ipfs://bafy-other");
         bytes32 salt = bytes32(uint256(21));
         _launchEth("Col", "COL", salt, a);
         vm.prank(deployer);
@@ -255,18 +250,15 @@ contract ScoopFactoryMetadataForkTest is Test {
     }
 
     function test_validIpfsImageUri() public {
-        ScoopFactory.LaunchMetadata memory md = ScoopFactory.LaunchMetadata({
-            description: "ok",
-            externalUrl: "",
-            imageUri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
-        });
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(
+            "ok", "", "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        );
         (address token,,,,) = _launchEth("Ok", "OK", bytes32(uint256(30)), md);
         assertTrue(factory.isScoopToken(token));
     }
 
     function test_emptyImageUriReverts() public {
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: ""});
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("x", "", "");
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.EmptyImageUri.selector);
         factory.launch{value: 0.0005 ether}(_ethParams("EImg", "EI", bytes32(uint256(31)), md));
@@ -275,8 +267,7 @@ contract ScoopFactoryMetadataForkTest is Test {
     function test_nonIpfsImageUriReverts() public {
         string[4] memory bad = ["https://example.com/image.png", "http://example.com/x.png", "ar://txid", "IPFS://bafy"];
         for (uint256 i; i < bad.length; ++i) {
-            ScoopFactory.LaunchMetadata memory md =
-                ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: bad[i]});
+            ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("x", "", bad[i]);
             vm.prank(deployer);
             vm.expectRevert(ScoopFactory.InvalidImageUriPrefix.selector);
             factory.launch{value: 0.0005 ether}(_ethParams("Bad", "BAD", bytes32(uint256(40 + i)), md));
@@ -286,8 +277,7 @@ contract ScoopFactoryMetadataForkTest is Test {
     function test_malformedIpfsPrefixReverts() public {
         string[2] memory bad = ["ipfs:/bafy", "ipfs:/"];
         for (uint256 i; i < bad.length; ++i) {
-            ScoopFactory.LaunchMetadata memory md =
-                ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: bad[i]});
+            ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("x", "", bad[i]);
             vm.prank(deployer);
             vm.expectRevert(ScoopFactory.InvalidImageUriPrefix.selector);
             factory.launch{value: 0.0005 ether}(_ethParams("Mal", "MAL", bytes32(uint256(50 + i)), md));
@@ -297,16 +287,14 @@ contract ScoopFactoryMetadataForkTest is Test {
     function test_oversizedImageUriReverts() public {
         string memory oversized = string(abi.encodePacked("ipfs://", _repeat("a", 122))); // 7+122=129 > 128
         assertEq(bytes(oversized).length, 129);
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: oversized});
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("x", "", oversized);
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.ImageUriTooLong.selector, uint256(129)));
         factory.launch{value: 0.0005 ether}(_ethParams("BigI", "BI", bytes32(uint256(60)), md));
     }
 
     function test_emptyDescriptionReverts() public {
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "", externalUrl: "", imageUri: "ipfs://bafy"});
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("", "", "ipfs://bafy");
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.EmptyDescription.selector);
         factory.launch{value: 0.0005 ether}(_ethParams("EDesc", "ED", bytes32(uint256(61)), md));
@@ -315,42 +303,45 @@ contract ScoopFactoryMetadataForkTest is Test {
     function test_descriptionAtMaxLength() public {
         string memory desc = _repeat("d", 280);
         assertEq(bytes(desc).length, 280);
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: desc, externalUrl: "", imageUri: "ipfs://bafy-max-desc"});
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(desc, "", "ipfs://bafy-max-desc");
         (address token,,,,) = _launchEth("MaxD", "MD", bytes32(uint256(62)), md);
         assertTrue(factory.isScoopToken(token));
     }
 
     function test_oversizedDescriptionReverts() public {
         string memory desc = _repeat("d", 281);
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: desc, externalUrl: "", imageUri: "ipfs://bafy"});
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(desc, "", "ipfs://bafy");
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.DescriptionTooLong.selector, uint256(281)));
         factory.launch{value: 0.0005 ether}(_ethParams("BigD", "BD", bytes32(uint256(63)), md));
     }
 
-    function test_emptyExternalUrlAllowed() public {
+    function test_emptyWebsiteAllowed() public {
         ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "no url", externalUrl: "", imageUri: "ipfs://bafy-empty-url"});
+            ScoopLaunchMetadataHelpers.metadata("no url", "", "ipfs://bafy-empty-url");
         (address token,,,,) = _launchEth("NoUrl", "NU", bytes32(uint256(64)), md);
         assertTrue(factory.isScoopToken(token));
+        (,,, string memory website,) = ScoopToken(token).socials();
+        assertEq(website, "");
     }
 
-    function test_externalUrlAtMaxLength() public {
-        string memory url = _repeat("u", 256);
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "url", externalUrl: url, imageUri: "ipfs://bafy-url"});
+    function test_websiteAtMaxLength() public {
+        // https:// = 8 bytes; pad to exactly MAX_WEBSITE_BYTES
+        string memory url = string(abi.encodePacked("https://", _repeat("u", 248)));
+        assertEq(bytes(url).length, 256);
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("url", url, "ipfs://bafy-url");
         (address token,,,,) = _launchEth("MaxU", "MU", bytes32(uint256(65)), md);
         assertTrue(factory.isScoopToken(token));
+        (,,, string memory website,) = ScoopToken(token).socials();
+        assertEq(website, url);
     }
 
-    function test_oversizedExternalUrlReverts() public {
-        string memory url = _repeat("u", 257);
-        ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: "url", externalUrl: url, imageUri: "ipfs://bafy"});
+    function test_oversizedWebsiteReverts() public {
+        string memory url = string(abi.encodePacked("https://", _repeat("u", 249))); // 257
+        assertEq(bytes(url).length, 257);
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata("url", url, "ipfs://bafy");
         vm.prank(deployer);
-        vm.expectRevert(abi.encodeWithSelector(ScoopFactory.ExternalUrlTooLong.selector, uint256(257)));
+        vm.expectRevert(abi.encodeWithSelector(ScoopFactory.WebsiteTooLong.selector, uint256(257)));
         factory.launch{value: 0.0005 ether}(_ethParams("BigU", "BU", bytes32(uint256(66)), md));
     }
 
@@ -363,21 +354,70 @@ contract ScoopFactoryMetadataForkTest is Test {
         }
         assertEq(built.length, 280);
         ScoopFactory.LaunchMetadata memory md =
-            ScoopFactory.LaunchMetadata({description: string(built), externalUrl: "", imageUri: "ipfs://bafy-unicode"});
+            ScoopLaunchMetadataHelpers.metadata(string(built), "", "ipfs://bafy-unicode");
         (address token,,,,) = _launchEth("Uni", "UNI", bytes32(uint256(67)), md);
         assertTrue(factory.isScoopToken(token));
     }
 
-    function test_metadataHtmlLikeContentDoesNotAffectLaunch() public {
-        ScoopFactory.LaunchMetadata memory md = ScoopFactory.LaunchMetadata({
-            description: '<script>alert("x")</script> {"evil":true}',
-            externalUrl: "javascript:alert(1)",
-            imageUri: "ipfs://bafy-html-like"
-        });
-        (address token,,,,) = _launchEth("Html", "HTM", bytes32(uint256(68)), md);
+    function test_javascriptWebsiteRevertsInvalidHttpsUrl() public {
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(
+            '<script>alert("x")</script> {"evil":true}', "javascript:alert(1)", "ipfs://bafy-html-like"
+        );
+        vm.prank(deployer);
+        vm.expectRevert(abi.encodeWithSelector(ScoopFactory.InvalidHttpsUrl.selector, bytes32("website")));
+        factory.launch{value: 0.0005 ether}(_ethParams("Html", "HTM", bytes32(uint256(68)), md));
+    }
+
+    function test_htmlLikeDescriptionDoesNotAffectLaunch() public {
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(
+            '<script>alert("x")</script> {"evil":true}', "https://example.com", "ipfs://bafy-html-like"
+        );
+        (address token,,,,) = _launchEth("Html", "HTM", bytes32(uint256(69)), md);
         assertEq(factory.getLaunch(token).creatorId, registry.walletCreatorId(walletCreator));
         assertEq(IERC20(token).balanceOf(walletCreator), 0);
         assertEq(IERC20(token).totalSupply(), 1_000_000_000 ether);
+    }
+
+    function test_badTwitterPrefixReverts() public {
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.emptySocialsMetadata();
+        md.twitter = "@name";
+        vm.prank(deployer);
+        vm.expectRevert(ScoopFactory.InvalidTwitterPrefix.selector);
+        factory.launch{value: 0.0005 ether}(_ethParams("TwBad", "TB", bytes32(uint256(90)), md));
+    }
+
+    function test_telegramHttpsOk() public {
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.emptySocialsMetadata();
+        md.telegram = "https://t.me/x";
+        (address token,,,,) = _launchEth("TgOk", "TG", bytes32(uint256(91)), md);
+        assertTrue(factory.isScoopToken(token));
+        (, string memory telegram,,,) = ScoopToken(token).socials();
+        assertEq(telegram, "https://t.me/x");
+    }
+
+    function test_emptySocialsOk() public {
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.emptySocialsMetadata();
+        vm.recordLogs();
+        (address token,,,,) = _launchEth("NoSoc", "NS", bytes32(uint256(92)), md);
+        (address decoded, string memory d, string memory website, string memory img) =
+            _decodeScoopTokenCreated(vm.getRecordedLogs());
+        assertEq(decoded, token);
+        assertEq(d, md.description);
+        assertEq(website, "");
+        assertEq(img, md.imageUri);
+        _assertTokenMatchesEvent(token, d, website, img);
+        (
+            string memory twitter,
+            string memory telegram,
+            string memory discord,
+            string memory site,
+            string memory farcaster
+        ) = ScoopToken(token).socials();
+        assertEq(twitter, "");
+        assertEq(telegram, "");
+        assertEq(discord, "");
+        assertEq(site, "");
+        assertEq(farcaster, "");
     }
 
     function test_nativeLaunchAndBuyPreservesMetadata() public {
@@ -390,14 +430,18 @@ contract ScoopFactoryMetadataForkTest is Test {
             factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
         console2.log("ETH launchAndBuy gas (w/ metadata)", gasBefore - gasleft());
         assertGt(bought, 0);
-        (address decoded,,, string memory img) = _decodeScoopTokenCreated(vm.getRecordedLogs());
+        (address decoded, string memory d, string memory website, string memory img) =
+            _decodeScoopTokenCreated(vm.getRecordedLogs());
         assertEq(decoded, token);
         assertEq(img, md.imageUri);
+        _assertTokenMatchesEvent(token, d, website, img);
+        assertEq(ScoopToken(token).logo(), md.imageUri);
+        assertEq(ScoopToken(token).description(), md.description);
     }
 
     function test_erc20LaunchAndBuyPreservesMetadata() public {
         ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.realisticMetadata();
-        bytes32 salt = _findAaplSalt("ABuy", "AB", true);
+        bytes32 salt = _findAaplSalt("ABuy", "AB", true, md);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
             name: "ABuy", symbol: "AB", creatorId: walletCreatorId, quoteAsset: AAPL_TOKEN, metadata: md, salt: salt
         });
@@ -412,10 +456,12 @@ contract ScoopFactoryMetadataForkTest is Test {
         (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         console2.log("AAPL c0 launchAndBuy gas (w/ metadata)", gasBefore - gasleft());
         assertGt(bought, 0);
-        (address decoded, string memory d,, string memory img) = _decodeScoopTokenCreated(vm.getRecordedLogs());
+        (address decoded, string memory d, string memory website, string memory img) =
+            _decodeScoopTokenCreated(vm.getRecordedLogs());
         assertEq(decoded, token);
         assertEq(d, md.description);
         assertEq(img, md.imageUri);
+        _assertTokenMatchesEvent(token, d, website, img);
     }
 
     function test_plainEthLaunchGasWithMetadata() public {
@@ -447,15 +493,13 @@ contract ScoopFactoryMetadataForkTest is Test {
         factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, type(uint128).max);
         // On revert, recorded logs from the call are empty / no successful events
         assertEq(deployer.balance, ethBefore);
-        assertFalse(factory.isScoopToken(_predictToken("SlipM", "SM", bytes32(uint256(81)))));
+        assertFalse(factory.isScoopToken(_predictToken("SlipM", "SM", bytes32(uint256(81)), md)));
     }
 
     function test_metadataDoesNotAffectCreatorAttribution() public {
-        ScoopFactory.LaunchMetadata memory md = ScoopFactory.LaunchMetadata({
-            description: "creator should ignore this",
-            externalUrl: "https://not-a-creator-id.example",
-            imageUri: "ipfs://bafy-not-creator"
-        });
+        ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.metadata(
+            "creator should ignore this", "https://not-a-creator-id.example", "ipfs://bafy-not-creator"
+        );
         (address token, address feeDist,,,) = _launchEth("AttrM", "AM", bytes32(uint256(82)), md);
         assertEq(factory.getLaunch(token).creatorId, walletCreatorId);
         assertEq(rewards.sourceCreatorId(feeDist), walletCreatorId);
@@ -473,20 +517,24 @@ contract ScoopFactoryMetadataForkTest is Test {
         assertFalse(ownerOk);
     }
 
-    function test_scoopTokenHasNoMetadataSurface() public {
+    function test_scoopTokenHasNoMetadataMutators() public {
         (address token,,,,) =
             _launchEth("TokAbi", "TA", bytes32(uint256(84)), ScoopLaunchMetadataHelpers.defaultMetadata());
         (bool tokenUri,) = token.call(abi.encodeWithSignature("tokenURI()"));
         (bool metaUri,) = token.call(abi.encodeWithSignature("metadataURI()"));
         (bool image,) = token.call(abi.encodeWithSignature("image()"));
         (bool setImage,) = token.call(abi.encodeWithSignature("setImage(string)", "x"));
+        (bool setLogo,) = token.call(abi.encodeWithSignature("setLogo(string)", "x"));
         (bool setDesc,) = token.call(abi.encodeWithSignature("setDescription(string)", "x"));
         assertFalse(tokenUri);
         assertFalse(metaUri);
         assertFalse(image);
         assertFalse(setImage);
+        assertFalse(setLogo);
         assertFalse(setDesc);
         assertEq(ScoopToken(token).totalSupply(), 1_000_000_000 ether);
+        assertEq(ScoopToken(token).logo(), ScoopLaunchMetadataHelpers.defaultMetadata().imageUri);
+        assertEq(ScoopToken(token).description(), ScoopLaunchMetadataHelpers.defaultMetadata().description);
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
@@ -509,40 +557,78 @@ contract ScoopFactoryMetadataForkTest is Test {
         return factory.launch{value: 0.0005 ether}(_ethParams(name, symbol, salt, md));
     }
 
-    function _predictToken(string memory name, string memory symbol, bytes32 salt) internal view returns (address) {
+    function _predictToken(
+        string memory name,
+        string memory symbol,
+        bytes32 salt,
+        ScoopFactory.LaunchMetadata memory md
+    ) internal view returns (address) {
         bytes32 launchSalt = keccak256(abi.encode(deployer, salt));
         bytes32 tokenSalt = keccak256(abi.encode(launchSalt, factory.TOKEN_DOMAIN()));
-        return tokenDeployer.predictTokenAddress(name, symbol, address(factory), tokenSalt);
+        return tokenDeployer.predictTokenAddress(
+            name,
+            symbol,
+            address(factory),
+            deployer,
+            address(factory),
+            md.imageUri,
+            md.description,
+            ScoopLaunchMetadataHelpers.toSocials(md),
+            tokenSalt
+        );
     }
 
-    function _findAaplSalt(string memory name, string memory symbol, bool tokenGreaterThanAapl)
-        internal
-        view
-        returns (bytes32)
-    {
+    function _findAaplSalt(
+        string memory name,
+        string memory symbol,
+        bool tokenGreaterThanAapl,
+        ScoopFactory.LaunchMetadata memory md
+    ) internal view returns (bytes32) {
         bytes32 domain = factory.TOKEN_DOMAIN();
         for (uint256 i = 1; i < 20_000; ++i) {
-            bytes32 userSalt = bytes32(i);
+            bytes32 userSalt = keccak256(abi.encode(name, symbol, i));
             bytes32 launchSalt = keccak256(abi.encode(deployer, userSalt));
             bytes32 tokenSalt = keccak256(abi.encode(launchSalt, domain));
-            address predicted = tokenDeployer.predictTokenAddress(name, symbol, address(factory), tokenSalt);
+            address predicted = tokenDeployer.predictTokenAddress(
+                name,
+                symbol,
+                address(factory),
+                deployer,
+                address(factory),
+                md.imageUri,
+                md.description,
+                ScoopLaunchMetadataHelpers.toSocials(md),
+                tokenSalt
+            );
             if (tokenGreaterThanAapl && predicted > AAPL_TOKEN) return userSalt;
             if (!tokenGreaterThanAapl && predicted < AAPL_TOKEN && predicted != address(0)) return userSalt;
         }
         revert("salt not found");
     }
 
+    function _assertTokenMatchesEvent(
+        address token,
+        string memory description,
+        string memory website,
+        string memory imageUri
+    ) internal view {
+        assertEq(ScoopToken(token).description(), description);
+        assertEq(ScoopToken(token).logo(), imageUri);
+        (,,, string memory site,) = ScoopToken(token).socials();
+        assertEq(site, website);
+    }
+
     function _decodeScoopTokenCreated(Vm.Log[] memory logs)
         internal
         pure
-        returns (address token, string memory description, string memory externalUrl, string memory imageUri)
+        returns (address token, string memory description, string memory website, string memory imageUri)
     {
         bytes32 topic0 = keccak256("ScoopTokenCreated(address,string,string,string)");
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].topics.length >= 2 && logs[i].topics[0] == topic0) {
                 token = address(uint160(uint256(logs[i].topics[1])));
-                (description, externalUrl, imageUri) = abi.decode(logs[i].data, (string, string, string));
-                return (token, description, externalUrl, imageUri);
+                (description, website, imageUri) = abi.decode(logs[i].data, (string, string, string));
+                return (token, description, website, imageUri);
             }
         }
         revert("ScoopTokenCreated not found");

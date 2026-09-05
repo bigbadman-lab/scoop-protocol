@@ -85,15 +85,19 @@ contract ScoopFactory is ReentrancyGuard {
     error QuotePrincipalNotZero(address quoteAsset, uint256 delta);
     error EmptyDescription();
     error DescriptionTooLong(uint256 length);
-    error ExternalUrlTooLong(uint256 length);
+    error WebsiteTooLong(uint256 length);
     error EmptyImageUri();
     error ImageUriTooLong(uint256 length);
     error InvalidImageUriPrefix();
+    error InvalidTwitterPrefix();
+    error InvalidHttpsUrl(bytes32 field);
+    error SocialUrlTooLong(bytes32 field, uint256 length);
 
     /// @dev Presentation metadata byte bounds (not Unicode grapheme counts).
     uint256 public constant MAX_DESCRIPTION_BYTES = 280;
-    uint256 public constant MAX_EXTERNAL_URL_BYTES = 256;
+    uint256 public constant MAX_WEBSITE_BYTES = 256;
     uint256 public constant MAX_IMAGE_URI_BYTES = 128;
+    uint256 public constant MAX_SOCIAL_URL_BYTES = 256;
 
     IPoolManager public immutable poolManager;
     IPositionManager public immutable positionManager;
@@ -111,8 +115,12 @@ contract ScoopFactory is ReentrancyGuard {
 
     struct LaunchMetadata {
         string description;
-        string externalUrl;
         string imageUri;
+        string twitter;
+        string telegram;
+        string discord;
+        string website;
+        string farcaster;
     }
 
     struct LaunchParams {
@@ -172,9 +180,10 @@ contract ScoopFactory is ReentrancyGuard {
         string symbol
     );
 
-    /// @notice Terminal/indexer discovery: associates deployed ScoopToken with presentation metadata.
-    /// @dev Emitted only after the launch is fully established. Not stored in Factory state.
-    event ScoopTokenCreated(address indexed token, string description, string externalUrl, string imageUri);
+    /// @notice Terminal/indexer discovery: associates deployed ScoopToken with core presentation metadata.
+    /// @dev Emitted only after the launch is fully established. Canonical full metadata lives on ScoopToken.
+    ///      `website` replaces the former `externalUrl` field (ABI break; nothing deployed yet).
+    event ScoopTokenCreated(address indexed token, string description, string website, string imageUri);
 
     event InitialBuyExecuted(
         address indexed token,
@@ -319,32 +328,53 @@ contract ScoopFactory is ReentrancyGuard {
         _finalizeLaunch(params, result);
     }
 
-    /// @dev Presentation-only validation. Opaque byte bounds; no URL/CID parsing beyond `ipfs://` prefix.
+    /// @dev Presentation-only validation. Opaque byte bounds + minimal full-URL prefixes.
     function _validateMetadata(LaunchMetadata calldata metadata) internal pure {
         uint256 descLen = bytes(metadata.description).length;
         if (descLen == 0) revert EmptyDescription();
         if (descLen > MAX_DESCRIPTION_BYTES) revert DescriptionTooLong(descLen);
-
-        uint256 urlLen = bytes(metadata.externalUrl).length;
-        if (urlLen > MAX_EXTERNAL_URL_BYTES) revert ExternalUrlTooLong(urlLen);
 
         bytes memory image = bytes(metadata.imageUri);
         uint256 imageLen = image.length;
         if (imageLen == 0) revert EmptyImageUri();
         if (imageLen > MAX_IMAGE_URI_BYTES) revert ImageUriTooLong(imageLen);
         if (!_hasIpfsPrefix(image)) revert InvalidImageUriPrefix();
+
+        _validateOptionalHttpsUrl(metadata.website, MAX_WEBSITE_BYTES, bytes32("website"));
+        _validateOptionalTwitter(metadata.twitter);
+        _validateOptionalHttpsUrl(metadata.telegram, MAX_SOCIAL_URL_BYTES, bytes32("telegram"));
+        _validateOptionalHttpsUrl(metadata.discord, MAX_SOCIAL_URL_BYTES, bytes32("discord"));
+        _validateOptionalHttpsUrl(metadata.farcaster, MAX_SOCIAL_URL_BYTES, bytes32("farcaster"));
+    }
+
+    function _validateOptionalHttpsUrl(string calldata url, uint256 maxLen, bytes32 field) internal pure {
+        uint256 len = bytes(url).length;
+        if (len == 0) return;
+        if (len > maxLen) {
+            if (field == bytes32("website")) revert WebsiteTooLong(len);
+            revert SocialUrlTooLong(field, len);
+        }
+        if (!_hasPrefix(bytes(url), "https://")) revert InvalidHttpsUrl(field);
+    }
+
+    function _validateOptionalTwitter(string calldata url) internal pure {
+        uint256 len = bytes(url).length;
+        if (len == 0) return;
+        if (len > MAX_SOCIAL_URL_BYTES) revert SocialUrlTooLong(bytes32("twitter"), len);
+        if (!_hasPrefix(bytes(url), "https://x.com/")) revert InvalidTwitterPrefix();
     }
 
     function _hasIpfsPrefix(bytes memory imageUri) internal pure returns (bool) {
-        // Literal ASCII `ipfs://` (7 bytes). Case-sensitive; `IPFS://` rejected.
-        if (imageUri.length < 7) return false;
-        return imageUri[0] == 0x69 // i
-            && imageUri[1] == 0x70 // p
-            && imageUri[2] == 0x66 // f
-            && imageUri[3] == 0x73 // s
-            && imageUri[4] == 0x3a // :
-            && imageUri[5] == 0x2f // /
-            && imageUri[6] == 0x2f; // /
+        return _hasPrefix(imageUri, "ipfs://");
+    }
+
+    function _hasPrefix(bytes memory data, string memory prefix) internal pure returns (bool) {
+        bytes memory p = bytes(prefix);
+        if (data.length < p.length) return false;
+        for (uint256 i; i < p.length; ++i) {
+            if (data[i] != p[i]) return false;
+        }
+        return true;
     }
 
     function _requireApprovedQuote(address quoteAsset) internal view {
@@ -366,7 +396,27 @@ contract ScoopFactory is ReentrancyGuard {
         bytes32 tokenSalt = keccak256(abi.encode(launchSalt, TOKEN_DOMAIN));
         bytes32 launchDomainSalt = keccak256(abi.encode(launchSalt, LAUNCH_DOMAIN));
 
-        token = tokenDeployer.deployToken(params.name, params.symbol, address(this), tokenSalt);
+        // Launch-component CREATE2 salts are metadata-independent, so the same deployer+user salt
+        // still collides on fee distributor / locker even when token init-code (metadata) differs.
+        ScoopToken.Socials memory socials = ScoopToken.Socials({
+            twitter: params.metadata.twitter,
+            telegram: params.metadata.telegram,
+            discord: params.metadata.discord,
+            website: params.metadata.website,
+            farcaster: params.metadata.farcaster
+        });
+
+        token = tokenDeployer.deployToken(
+            params.name,
+            params.symbol,
+            address(this),
+            msg.sender,
+            address(this),
+            params.metadata.imageUri,
+            params.metadata.description,
+            socials,
+            tokenSalt
+        );
 
         (feeDistributor, liquidityLocker) = launchDeployer.deployLaunch(
             address(creatorRewards),
@@ -443,7 +493,7 @@ contract ScoopFactory is ReentrancyGuard {
 
         // Discovery event first, then protocol TokenLaunched. Same token address is the join key.
         emit ScoopTokenCreated(
-            result.token, params.metadata.description, params.metadata.externalUrl, params.metadata.imageUri
+            result.token, params.metadata.description, params.metadata.website, params.metadata.imageUri
         );
         _emitTokenLaunched(params.creatorId, params.name, params.symbol, result);
     }

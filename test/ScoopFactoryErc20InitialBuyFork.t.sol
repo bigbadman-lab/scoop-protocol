@@ -601,10 +601,22 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
     {
         bytes32 domain = factory.TOKEN_DOMAIN();
         for (uint256 i = 1; i < 20_000; ++i) {
-            bytes32 userSalt = bytes32(i);
+            // Scope salts by name/symbol so multi-launch tests never reuse fee-distributor CREATE2 salts.
+            bytes32 userSalt = keccak256(abi.encode(name, symbol, i));
             bytes32 launchSalt = keccak256(abi.encode(deployer, userSalt));
             bytes32 tokenSalt = keccak256(abi.encode(launchSalt, domain));
-            address predicted = tokenDeployer.predictTokenAddress(name, symbol, address(factory), tokenSalt);
+            ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.defaultMetadata();
+            address predicted = tokenDeployer.predictTokenAddress(
+                name,
+                symbol,
+                address(factory),
+                deployer,
+                address(factory),
+                md.imageUri,
+                md.description,
+                ScoopLaunchMetadataHelpers.toSocials(md),
+                tokenSalt
+            );
             if (tokenGreaterThanAapl && predicted > AAPL_TOKEN) return userSalt;
             if (!tokenGreaterThanAapl && predicted < AAPL_TOKEN && predicted != address(0)) return userSalt;
         }

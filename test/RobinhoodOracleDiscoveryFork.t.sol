@@ -104,7 +104,16 @@ contract RobinhoodOracleDiscoveryForkTest is Test {
     }
 
     function test_scoopTokenUses18Decimals() public {
-        ScoopToken token = new ScoopToken("Scoop", "SCP", address(this));
+        ScoopToken token = new ScoopToken(
+            "Scoop",
+            "SCP",
+            address(this),
+            address(this),
+            address(this),
+            "ipfs://x",
+            "oracle discovery",
+            ScoopToken.Socials({twitter: "", telegram: "", discord: "", website: "", farcaster: ""})
+        );
         assertEq(token.decimals(), 18);
         console2.log("ScoopToken decimals", token.decimals());
     }

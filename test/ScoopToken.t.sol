@@ -8,13 +8,28 @@ import {ScoopToken} from "../src/ScoopToken.sol";
 contract ScoopTokenTest is Test {
     string constant NAME = "Scoop Market";
     string constant SYMBOL = "SCOOPM";
+    string constant LOGO = "ipfs://bafy-logo";
+    string constant DESCRIPTION = "test description";
 
     address recipient;
+    address tokenDeployerAddr;
+    address launchFactoryAddr;
+    ScoopToken.Socials socials;
     ScoopToken token;
 
     function setUp() public {
         recipient = makeAddr("recipient");
-        token = new ScoopToken(NAME, SYMBOL, recipient);
+        tokenDeployerAddr = makeAddr("deployer");
+        launchFactoryAddr = makeAddr("launchFactory");
+        socials = ScoopToken.Socials({
+            twitter: "https://x.com/scoop",
+            telegram: "https://t.me/scoop",
+            discord: "https://discord.gg/scoop",
+            website: "https://scoop.fun",
+            farcaster: "https://warpcast.com/scoop"
+        });
+        token =
+            new ScoopToken(NAME, SYMBOL, recipient, tokenDeployerAddr, launchFactoryAddr, LOGO, DESCRIPTION, socials);
     }
 
     function test_nameSetCorrectly() public view {
@@ -43,7 +58,51 @@ contract ScoopTokenTest is Test {
 
     function test_zeroRecipientReverts() public {
         vm.expectRevert(ScoopToken.ZeroRecipient.selector);
-        new ScoopToken(NAME, SYMBOL, address(0));
+        new ScoopToken(NAME, SYMBOL, address(0), tokenDeployerAddr, launchFactoryAddr, LOGO, DESCRIPTION, socials);
+    }
+
+    function test_zeroDeployerReverts() public {
+        vm.expectRevert(ScoopToken.ZeroDeployer.selector);
+        new ScoopToken(NAME, SYMBOL, recipient, address(0), launchFactoryAddr, LOGO, DESCRIPTION, socials);
+    }
+
+    function test_zeroLaunchFactoryReverts() public {
+        vm.expectRevert(ScoopToken.ZeroLaunchFactory.selector);
+        new ScoopToken(NAME, SYMBOL, recipient, tokenDeployerAddr, address(0), LOGO, DESCRIPTION, socials);
+    }
+
+    function test_metadataGetters() public view {
+        assertEq(token.deployer(), tokenDeployerAddr);
+        assertEq(token.launchFactory(), launchFactoryAddr);
+        assertEq(token.logo(), LOGO);
+        assertEq(token.description(), DESCRIPTION);
+
+        (
+            string memory twitter,
+            string memory telegram,
+            string memory discord,
+            string memory website,
+            string memory farcaster
+        ) = token.socials();
+        assertEq(twitter, socials.twitter);
+        assertEq(telegram, socials.telegram);
+        assertEq(discord, socials.discord);
+        assertEq(website, socials.website);
+        assertEq(farcaster, socials.farcaster);
+
+        (address deployer_, string memory logo_, string memory description_, ScoopToken.Socials memory socials_) =
+            token.getTokenInfo();
+        assertEq(deployer_, tokenDeployerAddr);
+        assertEq(logo_, LOGO);
+        assertEq(description_, DESCRIPTION);
+        assertEq(socials_.twitter, socials.twitter);
+        assertEq(socials_.website, socials.website);
+    }
+
+    function test_contractURIContainsPresentationFields() public view {
+        string memory uri = token.contractURI();
+        assertTrue(bytes(uri).length > 0);
+        assertTrue(_contains(uri, "data:application/json"));
     }
 
     function test_transferWorks() public {
@@ -70,7 +129,10 @@ contract ScoopTokenTest is Test {
         (bool metadataUriOk,) = address(token).call(abi.encodeWithSignature("metadataURI()"));
         (bool imageOk,) = address(token).call(abi.encodeWithSignature("image()"));
         (bool setImageOk,) = address(token).call(abi.encodeWithSignature("setImage(string)", "x"));
+        (bool setLogoOk,) = address(token).call(abi.encodeWithSignature("setLogo(string)", "x"));
         (bool setDescOk,) = address(token).call(abi.encodeWithSignature("setDescription(string)", "x"));
+        (bool setSocialsOk,) = address(token)
+            .call(abi.encodeWithSignature("setSocials(string,string,string,string,string)", "a", "b", "c", "d", "e"));
 
         assertFalse(ownerOk);
         assertFalse(adminOk);
@@ -84,6 +146,25 @@ contract ScoopTokenTest is Test {
         assertFalse(metadataUriOk);
         assertFalse(imageOk);
         assertFalse(setImageOk);
+        assertFalse(setLogoOk);
         assertFalse(setDescOk);
+        assertFalse(setSocialsOk);
+    }
+
+    function _contains(string memory haystack, string memory needle) internal pure returns (bool) {
+        bytes memory h = bytes(haystack);
+        bytes memory n = bytes(needle);
+        if (n.length > h.length) return false;
+        for (uint256 i; i <= h.length - n.length; ++i) {
+            bool match_ = true;
+            for (uint256 j; j < n.length; ++j) {
+                if (h[i + j] != n[j]) {
+                    match_ = false;
+                    break;
+                }
+            }
+            if (match_) return true;
+        }
+        return false;
     }
 }

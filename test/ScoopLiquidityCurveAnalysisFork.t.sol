@@ -520,7 +520,18 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             if (usedSalts[userSalt]) continue;
             bytes32 launchSalt = keccak256(abi.encode(deployer, userSalt));
             bytes32 tokenSalt = keccak256(abi.encode(launchSalt, domain));
-            address predicted = tokenDeployer.predictTokenAddress("ACurve", "ACR", address(factory), tokenSalt);
+            ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.defaultMetadata();
+            address predicted = tokenDeployer.predictTokenAddress(
+                "ACurve",
+                "ACR",
+                address(factory),
+                deployer,
+                address(factory),
+                md.imageUri,
+                md.description,
+                ScoopLaunchMetadataHelpers.toSocials(md),
+                tokenSalt
+            );
             bool ok = tokenGreater ? (predicted > AAPL_TOKEN) : (predicted < AAPL_TOKEN && predicted != address(0));
             if (!ok) continue;
             usedSalts[userSalt] = true;
@@ -536,7 +547,18 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             if (usedSalts[userSalt]) continue;
             bytes32 launchSalt = keccak256(abi.encode(deployer, userSalt));
             bytes32 tokenSalt = keccak256(abi.encode(launchSalt, domain));
-            address predicted = tokenDeployer.predictTokenAddress(name, symbol, address(factory), tokenSalt);
+            ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.defaultMetadata();
+            address predicted = tokenDeployer.predictTokenAddress(
+                name,
+                symbol,
+                address(factory),
+                deployer,
+                address(factory),
+                md.imageUri,
+                md.description,
+                ScoopLaunchMetadataHelpers.toSocials(md),
+                tokenSalt
+            );
             bool ok = tokenGreater ? (predicted > AAPL_TOKEN) : (predicted < AAPL_TOKEN && predicted != address(0));
             if (!ok) continue;
             usedSalts[userSalt] = true;
@@ -685,7 +707,17 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
 
     function _manualEthBuy(int24 width, uint256 ethIn) internal returns (BuySample memory s, address token) {
         bytes32 salt = _nextSalt();
-        token = tokenDeployer.deployToken("Man", "MAN", address(this), salt);
+        token = tokenDeployer.deployToken(
+            "Man",
+            "MAN",
+            address(this),
+            address(this),
+            address(this),
+            "ipfs://x",
+            "manual",
+            ScoopLaunchMetadataHelpers.emptySocials(),
+            salt
+        );
         ScoopLaunchMath.LaunchPricing memory pricing =
             ScoopLaunchMath.calculateLaunchPricing(token, address(0), 18, ethUsd);
         ScoopLiquidityCurveHelpers.CandidateRange memory r =
