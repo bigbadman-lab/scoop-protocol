@@ -16,6 +16,9 @@ import {ScoopFactory} from "./ScoopFactory.sol";
  *      3. Deploy ScoopFactory(..., rewards, ...)                  // CREATE nonce 2
  *      4. Require address(factory) == predictedFactory
  *
+ *      Prediction uses CREATE (deployer + nonce), not CREATE2 init-code hash. Adding constructor
+ *      arguments (e.g. universalRouter) does not change the predicted Factory address.
+ *
  *      Result: CreatorRewards.sourceRegistrar == Factory with no mutable registrar setters.
  */
 contract ScoopFactoryDeployer {
@@ -31,6 +34,7 @@ contract ScoopFactoryDeployer {
         address poolManager_,
         address positionManager_,
         address permit2_,
+        address universalRouter_,
         address tokenDeployer_,
         address launchDeployer_,
         address buybackVault_,
@@ -44,6 +48,7 @@ contract ScoopFactoryDeployer {
             poolManager_,
             positionManager_,
             permit2_,
+            universalRouter_,
             tokenDeployer_,
             launchDeployer_,
             address(rewards_),

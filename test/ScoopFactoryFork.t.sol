@@ -82,6 +82,7 @@ contract ScoopFactoryForkTest is Test {
             POOL_MANAGER_ADDR,
             POSITION_MANAGER_ADDR,
             PERMIT2_ADDR,
+            UNIVERSAL_ROUTER_ADDR,
             address(tokenDeployer),
             address(launchDeployer),
             buybackVault,
