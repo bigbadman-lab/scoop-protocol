@@ -47,7 +47,8 @@ interface IUniversalRouter {
  *      Deployer attribution is always `msg.sender` (4% fee leg). Creator attribution is the
  *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration.
  *
- *      This factory is the immutable `sourceRegistrar` on ScoopCreatorRewards (via ScoopFactoryDeployer).
+ *      Fixed `LAUNCH_FEE` (0.0005 ETH) is paid to immutable `launchFeeRecipient` on every
+ *      successful `launch` / `launchAndBuy`, independent of quote asset, LP, and trading fees.
  */
 contract ScoopFactory is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -55,6 +56,8 @@ contract ScoopFactory is ReentrancyGuard {
 
     uint24 public constant LP_FEE = 10_000;
     int24 public constant TICK_SPACING = 10;
+    /// @dev Fixed one-time protocol launch fee (ETH), separate from LP / initial-buy / trading fees.
+    uint256 public constant LAUNCH_FEE = 0.0005 ether;
     uint16 public constant CREATOR_REWARDS_BPS = 7000;
     uint16 public constant DEPLOYER_BPS = 400;
     uint16 public constant BUYBACK_BPS = 2000;
@@ -71,8 +74,8 @@ contract ScoopFactory is ReentrancyGuard {
     error InvalidSourceRegistrar();
     error FactoryRetainedLpNft(uint256 tokenId);
     error ZeroInitialBuy();
-    error IncorrectNativeValue(uint256 expected, uint256 actual);
-    error UnexpectedNativeValue();
+    error IncorrectLaunchValue(uint256 expected, uint256 actual);
+    error LaunchFeeTransferFailed();
     error UnsupportedTransferBehavior();
     error InsufficientTokensOut(uint256 actual, uint256 minimum);
     error NativeRefundFailed();
@@ -103,6 +106,8 @@ contract ScoopFactory is ReentrancyGuard {
     ScoopPriceOracle public immutable priceOracle;
     address public immutable buybackVault;
     address public immutable operations;
+    /// @dev Immutable recipient of `LAUNCH_FEE` on every successful launch. No setter.
+    address public immutable launchFeeRecipient;
 
     struct LaunchMetadata {
         string description;
@@ -179,6 +184,10 @@ contract ScoopFactory is ReentrancyGuard {
         uint256 tokensOut
     );
 
+    /// @notice Emitted once per successful launch when the fixed protocol launch fee is paid.
+    /// @dev Emission order: LaunchFeePaid → ScoopTokenCreated → TokenLaunched → (InitialBuyExecuted).
+    event LaunchFeePaid(address indexed payer, address indexed recipient, uint256 amount);
+
     constructor(
         address poolManager_,
         address positionManager_,
@@ -190,13 +199,14 @@ contract ScoopFactory is ReentrancyGuard {
         address quoteRegistry_,
         address priceOracle_,
         address buybackVault_,
-        address operations_
+        address operations_,
+        address launchFeeRecipient_
     ) {
         if (
             poolManager_ == address(0) || positionManager_ == address(0) || permit2_ == address(0)
                 || universalRouter_ == address(0) || tokenDeployer_ == address(0) || launchDeployer_ == address(0)
                 || creatorRewards_ == address(0) || quoteRegistry_ == address(0) || priceOracle_ == address(0)
-                || buybackVault_ == address(0) || operations_ == address(0)
+                || buybackVault_ == address(0) || operations_ == address(0) || launchFeeRecipient_ == address(0)
         ) {
             revert ZeroAddress();
         }
@@ -216,23 +226,30 @@ contract ScoopFactory is ReentrancyGuard {
         priceOracle = ScoopPriceOracle(priceOracle_);
         buybackVault = buybackVault_;
         operations = operations_;
+        launchFeeRecipient = launchFeeRecipient_;
     }
 
     /// @notice Atomically launch a quote/ScoopToken market with no initial purchase.
+    /// @dev Requires `msg.value == LAUNCH_FEE`. Fee is paid to `launchFeeRecipient` before launch work.
     function launch(LaunchParams calldata params)
         external
+        payable
         nonReentrant
         returns (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId, PoolId poolId)
     {
+        if (msg.value != LAUNCH_FEE) revert IncorrectLaunchValue(LAUNCH_FEE, msg.value);
+        _collectLaunchFee();
+
         LaunchResult memory result = _launch(params);
         return (result.token, result.feeDistributor, result.liquidityLocker, result.lpTokenId, result.poolId);
     }
 
     /**
      * @notice Atomically launch then buy launched tokens with quote asset.
-     * @dev Native: `quoteAsset == address(0)` and `msg.value == quoteAmountIn`.
-     *      ERC-20: `msg.value == 0`; Factory pulls `quoteAmountIn` from `msg.sender` after launch
+     * @dev Native: `quoteAsset == address(0)` and `msg.value == LAUNCH_FEE + quoteAmountIn`.
+     *      ERC-20: `msg.value == LAUNCH_FEE`; Factory pulls `quoteAmountIn` from `msg.sender` after launch
      *      validation (policy/oracle) succeeds, then swaps via Permit2 → Universal Router.
+     *      The swap always uses exactly `quoteAmountIn` (never the launch fee).
      *      Fee-on-transfer quotes are rejected (`actualReceived` must equal `quoteAmountIn`).
      */
     function launchAndBuy(LaunchParams calldata params, uint256 quoteAmountIn, uint256 minTokensOut)
@@ -249,11 +266,10 @@ contract ScoopFactory is ReentrancyGuard {
         )
     {
         if (quoteAmountIn == 0) revert ZeroInitialBuy();
-        if (params.quoteAsset == address(0)) {
-            if (msg.value != quoteAmountIn) revert IncorrectNativeValue(quoteAmountIn, msg.value);
-        } else if (msg.value != 0) {
-            revert UnexpectedNativeValue();
-        }
+
+        uint256 expectedValue = params.quoteAsset == address(0) ? LAUNCH_FEE + quoteAmountIn : LAUNCH_FEE;
+        if (msg.value != expectedValue) revert IncorrectLaunchValue(expectedValue, msg.value);
+        _collectLaunchFee();
 
         // Launch validates quote policy + oracle before any ERC-20 pull.
         LaunchResult memory result = _launch(params);
@@ -268,6 +284,14 @@ contract ScoopFactory is ReentrancyGuard {
 
         return
             (result.token, result.feeDistributor, result.liquidityLocker, result.lpTokenId, result.poolId, tokensBought);
+    }
+
+    /// @dev Pay exactly `LAUNCH_FEE` to the immutable recipient. Reverts the whole launch if the call fails.
+    function _collectLaunchFee() internal {
+        address recipient = launchFeeRecipient;
+        (bool ok,) = recipient.call{value: LAUNCH_FEE}("");
+        if (!ok) revert LaunchFeeTransferFailed();
+        emit LaunchFeePaid(msg.sender, recipient, LAUNCH_FEE);
     }
 
     function _launch(LaunchParams calldata params) internal returns (LaunchResult memory result) {

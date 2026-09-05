@@ -13,11 +13,12 @@ import {ScoopFactory} from "./ScoopFactory.sol";
  *      This deployer breaks the cycle with CREATE address prediction:
  *      1. Predict the address of the second contract created by this deployer (the Factory)
  *      2. Deploy ScoopCreatorRewards(registry, predictedFactory)  // CREATE nonce 1
- *      3. Deploy ScoopFactory(..., rewards, ...)                  // CREATE nonce 2
+ *      3. Deploy ScoopFactory(..., rewards, ..., launchFeeRecipient) // CREATE nonce 2
  *      4. Require address(factory) == predictedFactory
  *
  *      Prediction uses CREATE (deployer + nonce), not CREATE2 init-code hash. Adding constructor
- *      arguments (quoteRegistry, priceOracle, etc.) does not change the predicted Factory address.
+ *      arguments (quoteRegistry, priceOracle, launchFeeRecipient, etc.) does not change the
+ *      predicted Factory address.
  *
  *      Result: CreatorRewards.sourceRegistrar == Factory with no mutable registrar setters.
  */
@@ -40,7 +41,8 @@ contract ScoopFactoryDeployer {
         address quoteRegistry_,
         address priceOracle_,
         address buybackVault_,
-        address operations_
+        address operations_,
+        address launchFeeRecipient_
     ) {
         // Contract accounts start at nonce 1. First `new` uses 1; Factory is the second `new` (nonce 2).
         address predictedFactory = _computeCreateAddress(address(this), 2);
@@ -57,7 +59,8 @@ contract ScoopFactoryDeployer {
             quoteRegistry_,
             priceOracle_,
             buybackVault_,
-            operations_
+            operations_,
+            launchFeeRecipient_
         );
 
         if (address(factory_) != predictedFactory) {

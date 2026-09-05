@@ -76,6 +76,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     address trader;
@@ -89,6 +90,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
         trader = makeAddr("trader");
@@ -121,7 +123,8 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
         factory = protocol.factory();
         rewards = protocol.creatorRewards();
@@ -370,7 +373,8 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
                 salt: bytes32(uint256(30))
             });
             vm.prank(deployer);
-            (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+            (address token,,,,, uint256 bought) =
+                factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
             assertGt(bought, 0);
             assertEq(IERC20(token).balanceOf(deployer), bought);
             assertEq(address(factory).balance, 0);
@@ -396,7 +400,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             IERC20(AAPL_TOKEN).approve(address(factory), aaplIn);
 
             vm.prank(deployer);
-            (address token,,,,, uint256 bought) = factory.launchAndBuy(params, aaplIn, 1);
+            (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
             assertGt(bought, 0);
             assertEq(IERC20(token).balanceOf(deployer), bought);
             assertEq(IERC20(AAPL_TOKEN).balanceOf(address(factory)), 0);
@@ -410,7 +414,9 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
     function test_feeSplit_andCreatorClaim() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         vm.prank(deployer);
-        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
+        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch{
+            value: 0.0005 ether
+        }(
             ScoopFactory.LaunchParams({
                 name: "Fee",
                 symbol: "FEE",
@@ -506,7 +512,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
         assertEq(params.quoteAsset, address(0));
         // Geometry is derived solely by ScoopLaunchMath inside launch().
         vm.prank(deployer);
-        (address token,,,,) = factory.launch(params);
+        (address token,,,,) = factory.launch{value: 0.0005 ether}(params);
         ScoopFactory.Launch memory rec = factory.getLaunch(token);
         assertEq(rec.tickLower, TickMath.minUsableTick(factory.TICK_SPACING()));
         assertEq(rec.tickUpper, ScoopLaunchMath.floorToSpacing(rec.openingTick, factory.TICK_SPACING()));
@@ -552,7 +558,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     function _launchAapl(string memory name, string memory symbol, bytes32 salt)
@@ -568,7 +574,7 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     function _findSalt(string memory name, string memory symbol, bool tokenGreaterThanAapl)

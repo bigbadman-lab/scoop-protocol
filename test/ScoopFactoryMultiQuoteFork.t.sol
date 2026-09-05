@@ -71,6 +71,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     address trader;
@@ -83,6 +84,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
         trader = makeAddr("trader");
@@ -114,7 +116,8 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
         factory = protocol.factory();
         rewards = protocol.creatorRewards();
@@ -310,7 +313,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotRegistered.selector, bogus));
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_disabledQuoteRevertsAtomically() public {
@@ -327,7 +330,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotEnabled.selector, AAPL_TOKEN));
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_unconfiguredOracleRevertsAtomically() public {
@@ -349,7 +352,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopPriceOracle.PriceFeedNotConfigured.selector, stock2));
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_disabledOracleRevertsAtomically() public {
@@ -366,7 +369,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopPriceOracle.PriceFeedDisabled.selector, address(0)));
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_staleOracleRevertsAtomically() public {
@@ -383,7 +386,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_launchAndBuyStillWorksForEth() public {
@@ -397,7 +400,8 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
-        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        (address token,,,,, uint256 bought) =
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
         console2.log("ETH launchAndBuy gas", gasBefore - gasleft());
         assertGt(bought, 0);
         assertEq(IERC20(token).balanceOf(deployer), bought);
@@ -424,7 +428,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         IERC20(AAPL_TOKEN).approve(address(factory), aaplIn);
 
         vm.prank(deployer);
-        (address token,,,,, uint256 bought) = factory.launchAndBuy(params, aaplIn, 1);
+        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         assertGt(bought, 0);
         assertEq(IERC20(token).balanceOf(deployer), bought);
         assertEq(IERC20(AAPL_TOKEN).balanceOf(address(factory)), 0);
@@ -447,7 +451,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.UnsupportedQuoteDecimals.selector, uint8(24)));
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
@@ -465,7 +469,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     function _launchAapl(string memory name, string memory symbol, bytes32 salt)
@@ -481,7 +485,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     /// @dev Offchain salt search for CREATE2 token address orientation vs AAPL.

@@ -56,6 +56,7 @@ contract ScoopFactoryMetadataForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     bytes32 walletCreatorId;
@@ -86,6 +87,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
 
@@ -116,7 +118,8 @@ contract ScoopFactoryMetadataForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
         factory = protocol.factory();
         rewards = protocol.creatorRewards();
@@ -237,7 +240,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         ScoopFactory.LaunchParams memory params = _ethParams("Same", "SAME", salt, md2);
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_sameSaltDifferentMetadataStillCollides() public {
@@ -248,7 +251,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         _launchEth("Col", "COL", salt, a);
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launch(_ethParams("Col", "COL", salt, b));
+        factory.launch{value: 0.0005 ether}(_ethParams("Col", "COL", salt, b));
     }
 
     function test_validIpfsImageUri() public {
@@ -266,7 +269,7 @@ contract ScoopFactoryMetadataForkTest is Test {
             ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: ""});
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.EmptyImageUri.selector);
-        factory.launch(_ethParams("EImg", "EI", bytes32(uint256(31)), md));
+        factory.launch{value: 0.0005 ether}(_ethParams("EImg", "EI", bytes32(uint256(31)), md));
     }
 
     function test_nonIpfsImageUriReverts() public {
@@ -276,7 +279,7 @@ contract ScoopFactoryMetadataForkTest is Test {
                 ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: bad[i]});
             vm.prank(deployer);
             vm.expectRevert(ScoopFactory.InvalidImageUriPrefix.selector);
-            factory.launch(_ethParams("Bad", "BAD", bytes32(uint256(40 + i)), md));
+            factory.launch{value: 0.0005 ether}(_ethParams("Bad", "BAD", bytes32(uint256(40 + i)), md));
         }
     }
 
@@ -287,7 +290,7 @@ contract ScoopFactoryMetadataForkTest is Test {
                 ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: bad[i]});
             vm.prank(deployer);
             vm.expectRevert(ScoopFactory.InvalidImageUriPrefix.selector);
-            factory.launch(_ethParams("Mal", "MAL", bytes32(uint256(50 + i)), md));
+            factory.launch{value: 0.0005 ether}(_ethParams("Mal", "MAL", bytes32(uint256(50 + i)), md));
         }
     }
 
@@ -298,7 +301,7 @@ contract ScoopFactoryMetadataForkTest is Test {
             ScoopFactory.LaunchMetadata({description: "x", externalUrl: "", imageUri: oversized});
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.ImageUriTooLong.selector, uint256(129)));
-        factory.launch(_ethParams("BigI", "BI", bytes32(uint256(60)), md));
+        factory.launch{value: 0.0005 ether}(_ethParams("BigI", "BI", bytes32(uint256(60)), md));
     }
 
     function test_emptyDescriptionReverts() public {
@@ -306,7 +309,7 @@ contract ScoopFactoryMetadataForkTest is Test {
             ScoopFactory.LaunchMetadata({description: "", externalUrl: "", imageUri: "ipfs://bafy"});
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.EmptyDescription.selector);
-        factory.launch(_ethParams("EDesc", "ED", bytes32(uint256(61)), md));
+        factory.launch{value: 0.0005 ether}(_ethParams("EDesc", "ED", bytes32(uint256(61)), md));
     }
 
     function test_descriptionAtMaxLength() public {
@@ -324,7 +327,7 @@ contract ScoopFactoryMetadataForkTest is Test {
             ScoopFactory.LaunchMetadata({description: desc, externalUrl: "", imageUri: "ipfs://bafy"});
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.DescriptionTooLong.selector, uint256(281)));
-        factory.launch(_ethParams("BigD", "BD", bytes32(uint256(63)), md));
+        factory.launch{value: 0.0005 ether}(_ethParams("BigD", "BD", bytes32(uint256(63)), md));
     }
 
     function test_emptyExternalUrlAllowed() public {
@@ -348,7 +351,7 @@ contract ScoopFactoryMetadataForkTest is Test {
             ScoopFactory.LaunchMetadata({description: "url", externalUrl: url, imageUri: "ipfs://bafy"});
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.ExternalUrlTooLong.selector, uint256(257)));
-        factory.launch(_ethParams("BigU", "BU", bytes32(uint256(66)), md));
+        factory.launch{value: 0.0005 ether}(_ethParams("BigU", "BU", bytes32(uint256(66)), md));
     }
 
     function test_metadataUnicodeHandledAsBytes() public {
@@ -383,7 +386,8 @@ contract ScoopFactoryMetadataForkTest is Test {
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        (address token,,,,, uint256 bought) =
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
         console2.log("ETH launchAndBuy gas (w/ metadata)", gasBefore - gasleft());
         assertGt(bought, 0);
         (address decoded,,, string memory img) = _decodeScoopTokenCreated(vm.getRecordedLogs());
@@ -405,7 +409,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,, uint256 bought) = factory.launchAndBuy(params, aaplIn, 1);
+        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         console2.log("AAPL c0 launchAndBuy gas (w/ metadata)", gasBefore - gasleft());
         assertGt(bought, 0);
         (address decoded, string memory d,, string memory img) = _decodeScoopTokenCreated(vm.getRecordedLogs());
@@ -429,7 +433,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         vm.recordLogs();
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launch(_ethParams("DupM", "DM", salt, md));
+        factory.launch{value: 0.0005 ether}(_ethParams("DupM", "DM", salt, md));
         assertFalse(_hasScoopTokenCreated(vm.getRecordedLogs()));
     }
 
@@ -440,7 +444,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         vm.prank(deployer);
         vm.recordLogs();
         vm.expectRevert();
-        factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, type(uint128).max);
+        factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, type(uint128).max);
         // On revert, recorded logs from the call are empty / no successful events
         assertEq(deployer.balance, ethBefore);
         assertFalse(factory.isScoopToken(_predictToken("SlipM", "SM", bytes32(uint256(81)))));
@@ -502,7 +506,7 @@ contract ScoopFactoryMetadataForkTest is Test {
         returns (address token, address feeDist, address locker, uint256 lpId, PoolId poolId)
     {
         vm.prank(deployer);
-        return factory.launch(_ethParams(name, symbol, salt, md));
+        return factory.launch{value: 0.0005 ether}(_ethParams(name, symbol, salt, md));
     }
 
     function _predictToken(string memory name, string memory symbol, bytes32 salt) internal view returns (address) {

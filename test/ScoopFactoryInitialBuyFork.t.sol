@@ -64,6 +64,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     address relayer;
@@ -85,6 +86,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
         relayer = makeAddr("relayer");
@@ -112,7 +114,8 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
 
         factory = protocol.factory();
@@ -145,7 +148,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             uint256 lpTokenId,
             PoolId poolId,
             uint256 tokensBought
-        ) = factory.launchAndBuy{value: ethIn}(params, ethIn, 1);
+        ) = factory.launchAndBuy{value: 0.0005 ether + (ethIn)}(params, ethIn, 1);
         uint256 gasUsed = gasBefore - gasleft();
         console2.log("launchAndBuy(0.01 ETH) gas", gasUsed);
         console2.log("tokensBought", tokensBought);
@@ -183,7 +186,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         (address token,,, uint256 lpTokenId, PoolId poolId, uint256 tokensBought) =
-            factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
 
         // Pool moved and LP fees are accruable from the buy (not a factory inventory transfer).
         (, int24 tick,,) = IPoolManager(POOL_MANAGER_ADDR).getSlot0(poolId);
@@ -212,14 +215,14 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         // Impossible minimum — entire launchAndBuy must revert.
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, type(uint128).max);
+        factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, type(uint128).max);
 
         assertEq(deployer.balance, ethBefore);
         assertFalse(factory.isScoopToken(address(0)));
 
         // Same salt still available for a successful launch afterward.
         vm.prank(deployer);
-        (address token,,,,,) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        (address token,,,,,) = factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
         assertTrue(factory.isScoopToken(token));
     }
 
@@ -236,7 +239,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.ZeroInitialBuy.selector);
-        factory.launchAndBuy{value: 0}(params, 0, 1);
+        factory.launchAndBuy{value: 0.0005 ether + (0)}(params, 0, 1);
     }
 
     function test_launchAndBuy_incorrectNativeValueReverts() public {
@@ -251,8 +254,12 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         });
 
         vm.prank(deployer);
-        vm.expectRevert(abi.encodeWithSelector(ScoopFactory.IncorrectNativeValue.selector, 0.01 ether, 0.02 ether));
-        factory.launchAndBuy{value: 0.02 ether}(params, 0.01 ether, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ScoopFactory.IncorrectLaunchValue.selector, 0.0005 ether + 0.01 ether, 0.0005 ether + 0.02 ether
+            )
+        );
+        factory.launchAndBuy{value: 0.0005 ether + 0.02 ether}(params, 0.01 ether, 1);
     }
 
     function test_launchAndBuy_ethRangeCapacity() public {
@@ -274,7 +281,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             });
             uint256 ethBefore = deployer.balance;
             vm.prank(deployer);
-            try factory.launchAndBuy{value: sizes[i]}(params, sizes[i], 1) returns (
+            try factory.launchAndBuy{value: 0.0005 ether + (sizes[i])}(params, sizes[i], 1) returns (
                 address token, address, address, uint256, PoolId poolId, uint256 bought
             ) {
                 assertGt(bought, 0);
@@ -312,7 +319,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,) = factory.launch(params);
+        (address token,,,,) = factory.launch{value: 0.0005 ether}(params);
         uint256 gasUsed = gasBefore - gasleft();
         console2.log("launch() gas", gasUsed);
 
@@ -353,7 +360,8 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         });
 
         vm.prank(deployer);
-        (address token,,,,, uint256 tokensBought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        (address token,,,,, uint256 tokensBought) =
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
 
         _approveDeployerToken(token);
         uint256 ethBack = _sell(token, tokensBought / 3);
@@ -373,7 +381,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         (address token, address feeDistributor, address locker, uint256 lpTokenId,, uint256 tokensBought) =
-            factory.launchAndBuy{value: 0.02 ether}(params, 0.02 ether, 1);
+            factory.launchAndBuy{value: 0.0005 ether + (0.02 ether)}(params, 0.02 ether, 1);
         assertGt(tokensBought, 0);
 
         uint256 ethBalBeforeDistribute = deployer.balance;
@@ -416,7 +424,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         (address token, address feeDistributor, address locker, uint256 lpTokenId,, uint256 tokensBought) =
-            factory.launchAndBuy{value: 0.02 ether}(params, 0.02 ether, 1);
+            factory.launchAndBuy{value: 0.0005 ether + (0.02 ether)}(params, 0.02 ether, 1);
 
         assertGt(tokensBought, 0);
         assertEq(IERC20(token).balanceOf(deployer), tokensBought);
@@ -460,7 +468,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         (address token, address feeDistributor,,,, uint256 tokensBought) =
-            factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
 
         assertEq(factory.getLaunch(token).deployer, deployer);
         assertEq(IERC20(token).balanceOf(deployer), tokensBought);
@@ -479,11 +487,11 @@ contract ScoopFactoryInitialBuyForkTest is Test {
         });
 
         vm.prank(deployer);
-        factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
 
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
     }
 
     function test_launchAndBuy_emitsInitialBuyExecuted() public {
@@ -499,7 +507,8 @@ contract ScoopFactoryInitialBuyForkTest is Test {
 
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,, uint256 tokensBought) = factory.launchAndBuy{value: 0.01 ether}(params, 0.01 ether, 1);
+        (address token,,,,, uint256 tokensBought) =
+            factory.launchAndBuy{value: 0.0005 ether + (0.01 ether)}(params, 0.01 ether, 1);
 
         bytes32 topic0 = keccak256("InitialBuyExecuted(address,address,address,uint256,uint256)");
         bool found;
@@ -544,7 +553,7 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        (,,,,, tokensBought) = factory.launchAndBuy{value: ethIn}(params, ethIn, 1);
+        (,,,,, tokensBought) = factory.launchAndBuy{value: 0.0005 ether + (ethIn)}(params, ethIn, 1);
     }
 
     function _poolKey(address token) internal pure returns (PoolKey memory) {

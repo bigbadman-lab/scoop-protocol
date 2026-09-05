@@ -65,6 +65,7 @@ contract ScoopFactoryForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     address trader;
@@ -79,6 +80,7 @@ contract ScoopFactoryForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
         trader = makeAddr("trader");
@@ -107,7 +109,8 @@ contract ScoopFactoryForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
 
         factory = protocol.factory();
@@ -118,7 +121,7 @@ contract ScoopFactoryForkTest is Test {
         assertEq(address(factory.quoteRegistry()), address(quoteRegistry));
         assertEq(address(factory.priceOracle()), address(priceOracle));
 
-        vm.deal(deployer, 1 ether);
+        vm.deal(deployer, 10 ether);
         vm.deal(trader, 10 ether);
     }
 
@@ -136,7 +139,7 @@ contract ScoopFactoryForkTest is Test {
         uint256 gasBefore = gasleft();
         vm.prank(deployer);
         (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId, PoolId poolId) =
-            factory.launch(params);
+            factory.launch{value: 0.0005 ether}(params);
         uint256 gasUsed = gasBefore - gasleft();
         console2.log("launch() gas baseline", gasUsed);
 
@@ -190,7 +193,9 @@ contract ScoopFactoryForkTest is Test {
     function test_walletCreator_feeDistributeAndClaim() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         vm.prank(deployer);
-        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
+        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch{
+            value: 0.0005 ether
+        }(
             ScoopFactory.LaunchParams({
                 name: "W",
                 symbol: "W",
@@ -266,7 +271,9 @@ contract ScoopFactoryForkTest is Test {
         bytes32 creatorId = registry.xCreatorId(xUser);
 
         vm.prank(deployer);
-        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
+        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch{
+            value: 0.0005 ether
+        }(
             ScoopFactory.LaunchParams({
                 name: "XTok",
                 symbol: "X",
@@ -312,7 +319,7 @@ contract ScoopFactoryForkTest is Test {
         vm.deal(deployerB, 1 ether);
 
         vm.prank(deployer);
-        (address tokenA,,,,) = factory.launch(
+        (address tokenA,,,,) = factory.launch{value: 0.0005 ether}(
             ScoopFactory.LaunchParams({
                 name: "A",
                 symbol: "A",
@@ -324,7 +331,7 @@ contract ScoopFactoryForkTest is Test {
         );
 
         vm.prank(deployerB);
-        (address tokenB, address distributorB,,,) = factory.launch(
+        (address tokenB, address distributorB,,,) = factory.launch{value: 0.0005 ether}(
             ScoopFactory.LaunchParams({
                 name: "B",
                 symbol: "B",
@@ -352,11 +359,11 @@ contract ScoopFactoryForkTest is Test {
         });
 
         vm.prank(deployer);
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
 
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_zeroCreatorIdRevertsAtomically() public {
@@ -371,7 +378,7 @@ contract ScoopFactoryForkTest is Test {
 
         vm.prank(deployer);
         vm.expectRevert(ScoopFactory.ZeroCreatorId.selector);
-        factory.launch(params);
+        factory.launch{value: 0.0005 ether}(params);
     }
 
     function test_launchEmitsTokenLaunched() public {
@@ -387,7 +394,7 @@ contract ScoopFactoryForkTest is Test {
 
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,) = factory.launch(params);
+        (address token,,,,) = factory.launch{value: 0.0005 ether}(params);
 
         bytes32 topic0 = keccak256(
             "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"

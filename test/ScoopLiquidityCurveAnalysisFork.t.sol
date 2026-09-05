@@ -69,6 +69,7 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
     address trader;
@@ -102,6 +103,7 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
         trader = makeAddr("trader");
@@ -133,7 +135,8 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
         factory = protocol.factory();
         rewards = protocol.creatorRewards();
@@ -487,7 +490,7 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             salt: _nextSalt()
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     function _factoryLaunchAapl(bool tokenGreater)
@@ -505,7 +508,7 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launch(params);
+        return factory.launch{value: 0.0005 ether}(params);
     }
 
     mapping(bytes32 => bool) internal usedSalts;
@@ -670,7 +673,7 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             IERC20(AAPL_TOKEN).approve(address(factory), sizes[i]);
             uint256 before = IERC20(AAPL_TOKEN).balanceOf(deployer);
             vm.prank(deployer);
-            try factory.launchAndBuy(params, sizes[i], 1) {
+            try factory.launchAndBuy{value: 0.0005 ether}(params, sizes[i], 1) {
                 console2.log("factoryLaunchAndBuy OK", sizes[i]);
                 console2.log(" spent", before - IERC20(AAPL_TOKEN).balanceOf(deployer));
             } catch {

@@ -63,6 +63,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
     address oracleAuthority;
     address buybackVault;
     address operations;
+    address launchFeeRecipient;
     address deployer;
     address walletCreator;
 
@@ -82,6 +83,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         oracleAuthority = makeAddr("oracleAuthority");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
+        launchFeeRecipient = makeAddr("launchFeeRecipient");
         deployer = makeAddr("launchDeployer");
         walletCreator = makeAddr("walletCreator");
 
@@ -112,7 +114,8 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             address(quoteRegistry),
             address(priceOracle),
             buybackVault,
-            operations
+            operations,
+            launchFeeRecipient
         );
         factory = protocol.factory();
         rewards = protocol.creatorRewards();
@@ -281,7 +284,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy(params, aaplIn, type(uint128).max);
+        factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, type(uint128).max);
 
         assertEq(IERC20(AAPL_TOKEN).balanceOf(deployer), aaplBefore);
         assertFalse(factory.isScoopToken(address(0)));
@@ -306,7 +309,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy(params, aaplIn, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
 
         assertEq(IERC20(AAPL_TOKEN).balanceOf(deployer), aaplBefore);
     }
@@ -330,7 +333,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy(params, aaplIn, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         assertEq(IERC20(AAPL_TOKEN).balanceOf(deployer), aaplBefore);
     }
 
@@ -346,7 +349,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotRegistered.selector, address(fake)));
-        factory.launchAndBuy(params, 1e18, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, 1e18, 1);
     }
 
     function test_aaplInitialBuyDisabledQuoteRevertsBeforePull() public {
@@ -369,7 +372,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotEnabled.selector, AAPL_TOKEN));
-        factory.launchAndBuy(params, aaplIn, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         assertEq(IERC20(AAPL_TOKEN).balanceOf(deployer), before);
     }
 
@@ -389,7 +392,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         // No pull possible without balance — but policy/oracle fails inside launch before pull
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopPriceOracle.PriceFeedNotConfigured.selector, stock2));
-        factory.launchAndBuy(params, 1e18, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, 1e18, 1);
     }
 
     function test_aaplInitialBuyStaleOracleRevertsBeforePull() public {
@@ -412,7 +415,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
         });
         vm.prank(deployer);
         vm.expectRevert();
-        factory.launchAndBuy(params, aaplIn, 1);
+        factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
         assertEq(IERC20(AAPL_TOKEN).balanceOf(deployer), before);
     }
 
@@ -430,8 +433,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        vm.expectRevert(ScoopFactory.UnexpectedNativeValue.selector);
-        factory.launchAndBuy{value: 1 wei}(params, aaplIn, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ScoopFactory.IncorrectLaunchValue.selector, 0.0005 ether, 0.0005 ether + 1 wei)
+        );
+        factory.launchAndBuy{value: 0.0005 ether + 1 wei}(params, aaplIn, 1);
     }
 
     function test_multipleAaplInitialBuySizes() public {
@@ -468,7 +473,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             });
 
             vm.prank(deployer);
-            try factory.launchAndBuy(params, sizes[i], 1) returns (
+            try factory.launchAndBuy{value: 0.0005 ether}(params, sizes[i], 1) returns (
                 address token, address, address, uint256, PoolId poolId, uint256 bought
             ) {
                 (, int24 tick,,) = IPoolManager(POOL_MANAGER_ADDR).getSlot0(poolId);
@@ -503,7 +508,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
 
         vm.prank(deployer);
         vm.recordLogs();
-        (address token,,,,, uint256 bought) = factory.launchAndBuy(params, aaplIn, 1);
+        (address token,,,,, uint256 bought) = factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, 1);
 
         bytes32 topic0 = keccak256("InitialBuyExecuted(address,address,address,uint256,uint256)");
         bool found;
@@ -578,7 +583,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             salt: salt
         });
         vm.prank(deployer);
-        return factory.launchAndBuy(params, aaplIn, minOut);
+        return factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, minOut);
     }
 
     function _buySize(bytes32 salt, string memory name, string memory symbol, uint256 aaplIn)
