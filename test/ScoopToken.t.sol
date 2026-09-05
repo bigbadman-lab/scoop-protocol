@@ -66,6 +66,11 @@ contract ScoopTokenTest is Test {
         (bool whitelistOk,) = address(token).call(abi.encodeWithSignature("whitelist(address)", recipient));
         (bool setNameOk,) = address(token).call(abi.encodeWithSignature("setName(string)", "x"));
         (bool rescueOk,) = address(token).call(abi.encodeWithSignature("rescueTokens(address,uint256)", recipient, 1));
+        (bool tokenUriOk,) = address(token).call(abi.encodeWithSignature("tokenURI()"));
+        (bool metadataUriOk,) = address(token).call(abi.encodeWithSignature("metadataURI()"));
+        (bool imageOk,) = address(token).call(abi.encodeWithSignature("image()"));
+        (bool setImageOk,) = address(token).call(abi.encodeWithSignature("setImage(string)", "x"));
+        (bool setDescOk,) = address(token).call(abi.encodeWithSignature("setDescription(string)", "x"));
 
         assertFalse(ownerOk);
         assertFalse(adminOk);
@@ -75,5 +80,10 @@ contract ScoopTokenTest is Test {
         assertFalse(whitelistOk);
         assertFalse(setNameOk);
         assertFalse(rescueOk);
+        assertFalse(tokenUriOk);
+        assertFalse(metadataUriOk);
+        assertFalse(imageOk);
+        assertFalse(setImageOk);
+        assertFalse(setDescOk);
     }
 }

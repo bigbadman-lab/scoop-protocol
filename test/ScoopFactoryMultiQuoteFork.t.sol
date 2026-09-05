@@ -31,6 +31,7 @@ import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
+import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 import {ScoopLaunchMath} from "../src/libraries/ScoopLaunchMath.sol";
 import {MockAggregatorV3} from "./mocks/MockAggregatorV3.sol";
 
@@ -302,6 +303,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "BAD",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: bogus,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(99))
         });
         vm.prank(deployer);
@@ -318,6 +320,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "DIS",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(100))
         });
         vm.prank(deployer);
@@ -339,6 +342,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "NOR",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: stock2,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(101))
         });
         vm.prank(deployer);
@@ -355,6 +359,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "OD",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(102))
         });
         vm.prank(deployer);
@@ -371,6 +376,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "ST",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(103))
         });
         vm.prank(deployer);
@@ -384,6 +390,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "BE",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(104))
         });
         uint256 gasBefore = gasleft();
@@ -406,6 +413,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "BA",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
         uint256 aaplIn = 0.1e18;
@@ -432,6 +440,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: "DEC",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(weird),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(106))
         });
         vm.prank(deployer);
@@ -450,6 +459,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: symbol,
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
         vm.prank(deployer);
@@ -465,6 +475,7 @@ contract ScoopFactoryMultiQuoteForkTest is Test {
             symbol: symbol,
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
         vm.prank(deployer);

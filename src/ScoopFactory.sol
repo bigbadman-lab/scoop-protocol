@@ -40,6 +40,9 @@ interface IUniversalRouter {
  *      principal (zero quote principal). `launchAndBuy` supports native ETH and approved ERC-20
  *      quotes via exact-input Universal Router swaps (conventional ERC-20 approve UX; no Permit2 sigs).
  *
+ *      Presentation metadata (`LaunchMetadata`) is validated and emitted via `ScoopTokenCreated` for
+ *      terminal/indexer discovery. It is NOT stored in Factory state and does not affect economics.
+ *
  *      Deployer attribution is always `msg.sender` (4% fee leg). Creator attribution is the
  *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration.
  *
@@ -76,6 +79,17 @@ contract ScoopFactory is ReentrancyGuard {
     error QuoteNotEnabled(address quoteAsset);
     error UnsupportedQuoteDecimals(uint8 decimals);
     error QuotePrincipalNotZero(address quoteAsset, uint256 delta);
+    error EmptyDescription();
+    error DescriptionTooLong(uint256 length);
+    error ExternalUrlTooLong(uint256 length);
+    error EmptyImageUri();
+    error ImageUriTooLong(uint256 length);
+    error InvalidImageUriPrefix();
+
+    /// @dev Presentation metadata byte bounds (not Unicode grapheme counts).
+    uint256 public constant MAX_DESCRIPTION_BYTES = 280;
+    uint256 public constant MAX_EXTERNAL_URL_BYTES = 256;
+    uint256 public constant MAX_IMAGE_URI_BYTES = 128;
 
     IPoolManager public immutable poolManager;
     IPositionManager public immutable positionManager;
@@ -89,11 +103,18 @@ contract ScoopFactory is ReentrancyGuard {
     address public immutable buybackVault;
     address public immutable operations;
 
+    struct LaunchMetadata {
+        string description;
+        string externalUrl;
+        string imageUri;
+    }
+
     struct LaunchParams {
         string name;
         string symbol;
         bytes32 creatorId;
         address quoteAsset;
+        LaunchMetadata metadata;
         bytes32 salt;
     }
 
@@ -144,6 +165,10 @@ contract ScoopFactory is ReentrancyGuard {
         string name,
         string symbol
     );
+
+    /// @notice Terminal/indexer discovery: associates deployed ScoopToken with presentation metadata.
+    /// @dev Emitted only after the launch is fully established. Not stored in Factory state.
+    event ScoopTokenCreated(address indexed token, string description, string externalUrl, string imageUri);
 
     event InitialBuyExecuted(
         address indexed token,
@@ -246,6 +271,7 @@ contract ScoopFactory is ReentrancyGuard {
 
     function _launch(LaunchParams calldata params) internal returns (LaunchResult memory result) {
         if (params.creatorId == bytes32(0)) revert ZeroCreatorId();
+        _validateMetadata(params.metadata);
         _requireApprovedQuote(params.quoteAsset);
 
         (result.token, result.feeDistributor, result.liquidityLocker) = _deployLaunchContracts(params);
@@ -266,6 +292,34 @@ contract ScoopFactory is ReentrancyGuard {
 
         (result.lpTokenId, result.poolId) = _initPoolAndLockLiquidity(result, pricing);
         _finalizeLaunch(params, result);
+    }
+
+    /// @dev Presentation-only validation. Opaque byte bounds; no URL/CID parsing beyond `ipfs://` prefix.
+    function _validateMetadata(LaunchMetadata calldata metadata) internal pure {
+        uint256 descLen = bytes(metadata.description).length;
+        if (descLen == 0) revert EmptyDescription();
+        if (descLen > MAX_DESCRIPTION_BYTES) revert DescriptionTooLong(descLen);
+
+        uint256 urlLen = bytes(metadata.externalUrl).length;
+        if (urlLen > MAX_EXTERNAL_URL_BYTES) revert ExternalUrlTooLong(urlLen);
+
+        bytes memory image = bytes(metadata.imageUri);
+        uint256 imageLen = image.length;
+        if (imageLen == 0) revert EmptyImageUri();
+        if (imageLen > MAX_IMAGE_URI_BYTES) revert ImageUriTooLong(imageLen);
+        if (!_hasIpfsPrefix(image)) revert InvalidImageUriPrefix();
+    }
+
+    function _hasIpfsPrefix(bytes memory imageUri) internal pure returns (bool) {
+        // Literal ASCII `ipfs://` (7 bytes). Case-sensitive; `IPFS://` rejected.
+        if (imageUri.length < 7) return false;
+        return imageUri[0] == 0x69 // i
+            && imageUri[1] == 0x70 // p
+            && imageUri[2] == 0x66 // f
+            && imageUri[3] == 0x73 // s
+            && imageUri[4] == 0x3a // :
+            && imageUri[5] == 0x2f // /
+            && imageUri[6] == 0x2f; // /
     }
 
     function _requireApprovedQuote(address quoteAsset) internal view {
@@ -362,6 +416,10 @@ contract ScoopFactory is ReentrancyGuard {
             createdAt: uint64(block.timestamp)
         });
 
+        // Discovery event first, then protocol TokenLaunched. Same token address is the join key.
+        emit ScoopTokenCreated(
+            result.token, params.metadata.description, params.metadata.externalUrl, params.metadata.imageUri
+        );
         _emitTokenLaunched(params.creatorId, params.name, params.symbol, result);
     }
 

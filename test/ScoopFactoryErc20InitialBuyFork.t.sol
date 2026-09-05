@@ -29,6 +29,7 @@ import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
+import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 import {MockAggregatorV3} from "./mocks/MockAggregatorV3.sol";
 
 /**
@@ -273,6 +274,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "SLP",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
 
@@ -297,6 +299,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "NAP",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
 
@@ -320,6 +323,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "NBL",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
 
@@ -337,6 +341,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "UNR",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(fake),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(9001))
         });
         vm.prank(deployer);
@@ -359,6 +364,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "DIS",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(9002))
         });
         vm.prank(deployer);
@@ -377,6 +383,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "NOR",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: stock2,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(9003))
         });
         // No pull possible without balance — but policy/oracle fails inside launch before pull
@@ -400,6 +407,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "ST",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(9004))
         });
         vm.prank(deployer);
@@ -418,6 +426,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "EXX",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
         vm.prank(deployer);
@@ -454,6 +463,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
                 symbol: "CAP",
                 creatorId: registry.walletCreatorId(walletCreator),
                 quoteAsset: AAPL_TOKEN,
+                metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
                 salt: salt
             });
 
@@ -487,6 +497,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: "EVT",
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
 
@@ -563,6 +574,7 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             symbol: symbol,
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: salt
         });
         vm.prank(deployer);

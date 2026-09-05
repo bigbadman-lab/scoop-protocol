@@ -30,6 +30,7 @@ import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
+import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -128,6 +129,7 @@ contract ScoopFactoryForkTest is Test {
             symbol: "LAUNCH",
             creatorId: creatorId,
             quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
             salt: bytes32(uint256(1))
         });
 
@@ -190,7 +192,12 @@ contract ScoopFactoryForkTest is Test {
         vm.prank(deployer);
         (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
             ScoopFactory.LaunchParams({
-                name: "W", symbol: "W", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(2))
+                name: "W",
+                symbol: "W",
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+                salt: bytes32(uint256(2))
             })
         );
 
@@ -261,7 +268,12 @@ contract ScoopFactoryForkTest is Test {
         vm.prank(deployer);
         (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,) = factory.launch(
             ScoopFactory.LaunchParams({
-                name: "XTok", symbol: "X", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(3))
+                name: "XTok",
+                symbol: "X",
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+                salt: bytes32(uint256(3))
             })
         );
 
@@ -302,14 +314,24 @@ contract ScoopFactoryForkTest is Test {
         vm.prank(deployer);
         (address tokenA,,,,) = factory.launch(
             ScoopFactory.LaunchParams({
-                name: "A", symbol: "A", creatorId: creatorId, quoteAsset: address(0), salt: userSalt
+                name: "A",
+                symbol: "A",
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+                salt: userSalt
             })
         );
 
         vm.prank(deployerB);
         (address tokenB, address distributorB,,,) = factory.launch(
             ScoopFactory.LaunchParams({
-                name: "B", symbol: "B", creatorId: creatorId, quoteAsset: address(0), salt: userSalt
+                name: "B",
+                symbol: "B",
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+                salt: userSalt
             })
         );
 
@@ -321,7 +343,12 @@ contract ScoopFactoryForkTest is Test {
     function test_duplicateSaltSameDeployerReverts() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
-            name: "Dup", symbol: "DUP", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(9))
+            name: "Dup",
+            symbol: "DUP",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(9))
         });
 
         vm.prank(deployer);
@@ -334,7 +361,12 @@ contract ScoopFactoryForkTest is Test {
 
     function test_zeroCreatorIdRevertsAtomically() public {
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
-            name: "Z", symbol: "Z", creatorId: bytes32(0), quoteAsset: address(0), salt: bytes32(uint256(8))
+            name: "Z",
+            symbol: "Z",
+            creatorId: bytes32(0),
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(8))
         });
 
         vm.prank(deployer);
@@ -345,7 +377,12 @@ contract ScoopFactoryForkTest is Test {
     function test_launchEmitsTokenLaunched() public {
         bytes32 creatorId = registry.walletCreatorId(walletCreator);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
-            name: "Evt", symbol: "EVT", creatorId: creatorId, quoteAsset: address(0), salt: bytes32(uint256(11))
+            name: "Evt",
+            symbol: "EVT",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(11))
         });
 
         vm.prank(deployer);
