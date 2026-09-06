@@ -84,15 +84,38 @@ Does **not** enable AAPL. Does **not** deploy contracts.
 
 ## 4. Launch HELLO (canary) — separate step
 
-1. Fresh salt  
-2. Wallet creator ≠ protocol authorities  
-3. Prefer plain `launch` then optional small `launchAndBuy` (0.01 ETH)  
-4. Confirm metadata, FDV ≈ $5k, LP locker ownership, fee 0.0005 ETH, factory empty  
-5. Optional: one buy/sell + fee collect/distribute/claim  
+See **[`docs/MILESTONE_5D_HELLO_CANARY.md`](./MILESTONE_5D_HELLO_CANARY.md)** for the locked metadata, salt, creator, simulation, and broadcast commands.
+
+One-off tooling: `script/LaunchHello.s.sol` (helpers in `script/ScoopHelloCanaryLaunch.sol`).
+
+```bash
+set -a && source .env && set +a
+# SCOOP_FACTORY + HELLO_CREATOR_ADDRESS required; SCOOP_BROADCAST=false
+
+forge script script/LaunchHello.s.sol:LaunchHello \
+  --rpc-url "$ROBINHOOD_RPC_URL" \
+  --sender "$HELLO_CREATOR_ADDRESS" \
+  -vvvv
+```
+
+### STOP after HELLO simulation
+
+Review predicted addresses + manifest. Do not broadcast until a second human confirms.
+
+### Explicit HELLO broadcast (only after STOP clearance)
+
+```bash
+SCOOP_BROADCAST=true forge script script/LaunchHello.s.sol:LaunchHello \
+  --rpc-url "$ROBINHOOD_RPC_URL" \
+  --broadcast -vvvv
+```
+
+Post-launch: confirm metadata, FDV ≈ $5k, LP locker ownership, fee `0.0005 ETH`, factory empty, initial buy to HELLO creator.
 
 ## 5. STOP
 
 **Do not** proceed to public launches. Hand off to **5E forensic review**.
+**No second launch** until Milestone 5E is complete.
 
 ## Simulation (no broadcast) — 5C.1
 
