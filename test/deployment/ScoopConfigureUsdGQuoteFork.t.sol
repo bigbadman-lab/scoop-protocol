@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {console2} from "forge-std/console2.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+import {ConfigureUsdGQuoteLogic as Logic} from "../../script/ConfigureUsdGQuoteLogic.sol";
+import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
+import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
+import {ScoopFactory} from "../../src/ScoopFactory.sol";
+import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
+import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {IAggregatorV3} from "../../src/interfaces/IAggregatorV3.sol";
+
+/// @dev External wrapper so `vm.expectRevert` observes library reverts at correct call depth.
+contract ConfigureUsdGQuoteHarness {
+    function assertCanonicalEnvironment(
+        uint256 chainId,
+        address quoteRegistry,
+        address priceOracle,
+        address usdg,
+        address usdgFeed
+    ) external view {
+        Logic.assertCanonicalEnvironment(chainId, quoteRegistry, priceOracle, usdg, usdgFeed);
+    }
+
+    function assertCallerIsAuthority(address caller) external pure {
+        Logic.assertCallerIsAuthority(caller);
+    }
+
+    function assertFeedLiveAndFresh(address feed, uint48 maxAge) external view {
+        Logic.assertFeedLiveAndFresh(feed, maxAge);
+    }
+
+    function assertNotYetConfigured(address quoteRegistry, address priceOracle, address usdg) external view {
+        Logic.assertNotYetConfigured(quoteRegistry, priceOracle, usdg);
+    }
+
+    function executeConfiguration(address quoteRegistry, address priceOracle, address usdg, address usdgFeed) external {
+        Logic.executeConfiguration(quoteRegistry, priceOracle, usdg, usdgFeed);
+    }
+}
+
+/**
+ * @title ScoopConfigureUsdGQuoteForkTest
+ * @notice Phase 6C.2A — fork-only validation of guarded USDG configuration tooling.
+ * @dev Never broadcasts. Authority is impersonated on the fork only.
+ */
+contract ScoopConfigureUsdGQuoteForkTest is Test {
+    ScoopFactory internal constant FACTORY = ScoopFactory(0x15E874Bc667435ddbF2a67c0362701DC23C90833);
+    ScoopCreatorRegistry internal constant CREATOR_REGISTRY =
+        ScoopCreatorRegistry(0x608e117EdA28b65cDa473756a990B8246EAe62D2);
+
+    ConfigureUsdGQuoteHarness internal harness;
+    address internal creator;
+
+    function setUp() public {
+        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"));
+        require(block.chainid == 4663, "wrong chain");
+        harness = new ConfigureUsdGQuoteHarness();
+        creator = makeAddr("usdgConfigCreator_FORK_ONLY");
+        vm.deal(creator, 5 ether);
+    }
+
+    function test_fork_happyPath_configuresUsdGOracleFirstThenRegister() public {
+        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE);
+
+        Logic.assertCanonicalEnvironment(
+            block.chainid, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED
+        );
+        Logic.assertUsdGMetadata(Logic.USDG);
+        Logic.assertFeedLiveAndFresh(Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
+        Logic.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+
+        // Topic0 hashes for source events (assert without fragile enum topic encoding).
+        bytes32 feedConfiguredTopic0 = keccak256("PriceFeedConfigured(address,address,uint48,uint8)");
+        bytes32 quoteRegisteredTopic0 = keccak256("QuoteRegistered(address,uint8)");
+
+        vm.recordLogs();
+        vm.startPrank(Logic.AUTHORITY);
+        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool sawFeed;
+        bool sawQuote;
+        for (uint256 i; i < logs.length; ++i) {
+            if (
+                logs[i].emitter == Logic.PRICE_ORACLE && logs[i].topics.length > 0
+                    && logs[i].topics[0] == feedConfiguredTopic0
+            ) {
+                sawFeed = true;
+                assertEq(address(uint160(uint256(logs[i].topics[1]))), Logic.USDG);
+                assertEq(address(uint160(uint256(logs[i].topics[2]))), Logic.USDG_USD_FEED);
+            }
+            if (
+                logs[i].emitter == Logic.QUOTE_REGISTRY && logs[i].topics.length > 0
+                    && logs[i].topics[0] == quoteRegisteredTopic0
+            ) {
+                sawQuote = true;
+                assertEq(address(uint160(uint256(logs[i].topics[1]))), Logic.USDG);
+            }
+        }
+        assertTrue(sawFeed, "missing PriceFeedConfigured");
+        assertTrue(sawQuote, "missing QuoteRegistered");
+
+        Logic.assertPostconditions(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.assertEthUnchanged(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, ethBefore);
+        console2.log("usdgPriceUsd", ScoopPriceOracle(Logic.PRICE_ORACLE).getPriceUsd(Logic.USDG));
+    }
+
+    function test_guard_wrongChainId() public {
+        vm.expectRevert(abi.encodeWithSelector(Logic.WrongChainId.selector, uint256(4663), uint256(1)));
+        harness.assertCanonicalEnvironment(1, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+    }
+
+    function test_guard_wrongRegistry() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(Logic.WrongQuoteRegistry.selector, Logic.QUOTE_REGISTRY, address(0xBEEF))
+        );
+        harness.assertCanonicalEnvironment(4663, address(0xBEEF), Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+    }
+
+    function test_guard_wrongOracle() public {
+        vm.expectRevert(abi.encodeWithSelector(Logic.WrongPriceOracle.selector, Logic.PRICE_ORACLE, address(0xBEEF)));
+        harness.assertCanonicalEnvironment(4663, Logic.QUOTE_REGISTRY, address(0xBEEF), Logic.USDG, Logic.USDG_USD_FEED);
+    }
+
+    function test_guard_wrongUsdG() public {
+        vm.expectRevert(abi.encodeWithSelector(Logic.WrongUsdG.selector, Logic.USDG, address(0xBEEF)));
+        harness.assertCanonicalEnvironment(
+            4663, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, address(0xBEEF), Logic.USDG_USD_FEED
+        );
+    }
+
+    function test_guard_wrongFeed() public {
+        vm.expectRevert(abi.encodeWithSelector(Logic.WrongUsdGFeed.selector, Logic.USDG_USD_FEED, address(0xBEEF)));
+        harness.assertCanonicalEnvironment(4663, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, address(0xBEEF));
+    }
+
+    function test_guard_unauthorizedCaller() public {
+        address attacker = makeAddr("attacker");
+        vm.expectRevert(abi.encodeWithSelector(Logic.WrongCaller.selector, Logic.AUTHORITY, attacker));
+        harness.assertCallerIsAuthority(attacker);
+    }
+
+    function test_fork_refuseAlreadyConfiguredOracle() public {
+        vm.prank(Logic.AUTHORITY);
+        ScoopPriceOracle(Logic.PRICE_ORACLE).configureFeed(Logic.USDG, Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
+
+        vm.expectRevert(Logic.UsdGOracleAlreadyConfigured.selector);
+        harness.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+    }
+
+    function test_fork_refuseAlreadyRegisteredQuote() public {
+        vm.prank(Logic.AUTHORITY);
+        ScoopQuoteRegistry(Logic.QUOTE_REGISTRY).registerQuote(Logic.USDG, ScoopQuoteRegistry.QuoteType.Scoop);
+
+        vm.expectRevert(Logic.UsdGAlreadyRegistered.selector);
+        harness.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+    }
+
+    function test_guard_staleFeed() public {
+        vm.mockCall(
+            Logic.USDG_USD_FEED,
+            abi.encodeWithSelector(IAggregatorV3.latestRoundData.selector),
+            abi.encode(uint80(1), int256(1e8), uint256(0), uint256(1), uint80(1))
+        );
+        vm.warp(Logic.USDG_MAX_AGE + 100);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Logic.StaleFeed.selector, uint256(1), uint256(Logic.USDG_MAX_AGE), uint256(Logic.USDG_MAX_AGE + 100)
+            )
+        );
+        harness.assertFeedLiveAndFresh(Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
+    }
+
+    function test_fork_ethConfigUnchangedAfterUsdGConfig() public {
+        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE);
+        assertTrue(ethBefore.registered);
+        assertTrue(ethBefore.enabled);
+        assertEq(ethBefore.feed, Logic.ETH_USD_FEED);
+        assertEq(ethBefore.maxAge, Logic.ETH_MAX_AGE);
+
+        vm.startPrank(Logic.AUTHORITY);
+        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        vm.stopPrank();
+
+        Logic.assertEthUnchanged(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, ethBefore);
+    }
+
+    function test_fork_fullLaunchRehearsalAgainstUsdG() public {
+        vm.startPrank(Logic.AUTHORITY);
+        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        vm.stopPrank();
+        Logic.assertPostconditions(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+
+        uint256 quoteIn = 25e6;
+        deal(Logic.USDG, creator, quoteIn);
+        assertEq(IERC20(Logic.USDG).balanceOf(creator), quoteIn);
+
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "UsdGConfigRehearsal",
+            symbol: "UCFG",
+            creatorId: CREATOR_REGISTRY.walletCreatorId(creator),
+            quoteAsset: Logic.USDG,
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(6201))
+        });
+
+        uint256 fee = FACTORY.LAUNCH_FEE();
+        assertEq(fee, 0.0005 ether);
+
+        uint256 feeRecipientBefore = FACTORY.launchFeeRecipient().balance;
+        uint256 factoryEthBefore = address(FACTORY).balance;
+        uint256 factoryUsdGBefore = IERC20(Logic.USDG).balanceOf(address(FACTORY));
+
+        vm.startPrank(creator);
+        IERC20(Logic.USDG).approve(address(FACTORY), quoteIn);
+        (address token, address feeDistributor, address liquidityLocker, uint256 lpTokenId,, uint256 bought) =
+            FACTORY.launchAndBuy{value: fee}(params, quoteIn, 1);
+        vm.stopPrank();
+
+        assertGt(bought, 0);
+        assertEq(IERC20(token).balanceOf(creator), bought);
+        assertEq(IERC20(Logic.USDG).balanceOf(address(FACTORY)), factoryUsdGBefore);
+        assertEq(IERC20(token).balanceOf(address(FACTORY)), 0);
+        assertEq(address(FACTORY).balance, factoryEthBefore);
+        assertEq(FACTORY.launchFeeRecipient().balance - feeRecipientBefore, fee);
+
+        ScoopFactory.Launch memory rec = FACTORY.getLaunch(token);
+        assertEq(rec.quoteAsset, Logic.USDG);
+        assertEq(rec.token, token);
+        assertEq(rec.feeDistributor, feeDistributor);
+        assertEq(rec.liquidityLocker, liquidityLocker);
+        assertEq(rec.lpTokenId, lpTokenId);
+        assertEq(IERC721(address(FACTORY.positionManager())).ownerOf(lpTokenId), liquidityLocker);
+
+        console2.log("rehearsal token", token);
+        console2.log("rehearsal bought", bought);
+        console2.log("rehearsal lpTokenId", lpTokenId);
+    }
+}
