@@ -1,0 +1,365 @@
+[
+  {
+    "symbol": "ASML",
+    "name": "ASML Holding NV \u2022 Robinhood Token",
+    "token": "0x47F93d52cBeC7C6D2CfC080e154002370a60dAEA",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000101323251417769",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x47f93d52cbec7c6d2cfc080e154002370a60daea.png",
+    "uid": "0x00000000000000000000000000000000f6e013126d524981acc9df053b0c19ea",
+    "oracleFeed": "0xB4106147E8cce40b7d46124090d373A71b70f87D",
+    "oracleFeedName": "Robinhood ASML / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "ASML",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000101323251417769,
+      "feedHasCode": true,
+      "feedDescription": "Robinhood ASML / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 171180267784,
+      "feedUpdatedAt": 1788551452,
+      "feedAgeSeconds": 217004,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
+      },
+      "usdgRoute": {
+        "available": true,
+        "bestFee": 3000,
+        "amountOut": 5819931964279512,
+        "allRoutes": [
+          {
+            "fee": 3000,
+            "amountOut": 5819931964279512
+          },
+          {
+            "fee": 10000,
+            "amountOut": 5776250305521967
+          }
+        ]
+      },
+      "ethPaymentRouteAvailable": true
+    },
+    "errors": [],
+    "hardPass": true
+  },
+  {
+    "symbol": "MU",
+    "name": "Micron Technology \u2022 Robinhood Token",
+    "token": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000074823219171086",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xff080c8ce2e5feadaca0da81314ae59d232d4afd.png",
+    "uid": "0x000000000000000000000000000000007757415150a94b50a879cdc04dc90664",
+    "oracleFeed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
+    "oracleFeedName": "Robinhood MU / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "MU",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000074823219171086,
+      "feedHasCode": true,
+      "feedDescription": "RHMU / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 101479197432,
+      "feedUpdatedAt": 1788551816,
+      "feedAgeSeconds": 216640,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": true,
+        "bestFee": 10000,
+        "amountOut": 23759899509814744,
+        "allRoutes": [
+          {
+            "fee": 3000,
+            "amountOut": 23206623968988069
+          },
+          {
+            "fee": 10000,
+            "amountOut": 23759899509814744
+          }
+        ]
+      },
+      "usdgRoute": {
+        "available": true,
+        "bestFee": 3000,
+        "amountOut": 9549754763711146,
+        "allRoutes": [
+          {
+            "fee": 3000,
+            "amountOut": 9549754763711146
+          }
+        ]
+      },
+      "ethPaymentRouteAvailable": true
+    },
+    "errors": [],
+    "hardPass": true
+  },
+  {
+    "symbol": "NBIS",
+    "name": "Nebius Group \u2022 Robinhood Token",
+    "token": "0x9D9c6684F596F66a64C030B93A886D51Fd4D7931",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x9d9c6684f596f66a64c030b93a886d51fd4d7931.png",
+    "uid": "0x00000000000000000000000000000000994b82ab24514d439fccc87156df35f9",
+    "oracleFeed": "0xE1D87B116Ba0fe898998f1D140339D1fA1E09705",
+    "oracleFeedName": "Robinhood NBIS / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "NBIS",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000000000000000000,
+      "feedHasCode": true,
+      "feedDescription": "Robinhood NBIS / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 22482480000,
+      "feedUpdatedAt": 1788552958,
+      "feedAgeSeconds": 215498,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
+      },
+      "usdgRoute": {
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
+      },
+      "ethPaymentRouteAvailable": false
+    },
+    "errors": [
+      "NO_ETH_ORIGIN_ROUTE"
+    ],
+    "hardPass": false
+  },
+  {
+    "symbol": "RGTI",
+    "name": "Rigetti Computing \u2022 Robinhood Token",
+    "token": "0x284358abc07F9359f19f4b5b4aC91901Be2597Ba",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x284358abc07f9359f19f4b5b4ac91901be2597ba.png",
+    "uid": "0x0000000000000000000000000000000031a6c09d095b4d49b4155de0040da68f",
+    "oracleFeed": "0x2A045cF1C49c61c166C036d2f06FA2D2d984f765",
+    "oracleFeedName": "Robinhood RGTI / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "RGTI",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000000000000000000,
+      "feedHasCode": true,
+      "feedDescription": "Robinhood RGTI / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 1525385000,
+      "feedUpdatedAt": 1788557677,
+      "feedAgeSeconds": 210779,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
+      },
+      "usdgRoute": {
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
+      },
+      "ethPaymentRouteAvailable": false
+    },
+    "errors": [
+      "NO_ETH_ORIGIN_ROUTE"
+    ],
+    "hardPass": false
+  },
+  {
+    "symbol": "SNDK",
+    "name": "Sandisk Corporation \u2022 Robinhood Token",
+    "token": "0xB90A19fF0Af67f7779afF50A882A9CfF42446400",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xb90a19ff0af67f7779aff50a882a9cff42446400.png",
+    "uid": "0x0000000000000000000000000000000046e46cc63fe842ebbdfe6187bda403d6",
+    "oracleFeed": "0xfb133Fa4B7b385802B693a293606682Df47109A3",
+    "oracleFeedName": "Robinhood SNDK / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "SNDK",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000000000000000000,
+      "feedHasCode": true,
+      "feedDescription": "RHSNDK / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 172964645000,
+      "feedUpdatedAt": 1788554195,
+      "feedAgeSeconds": 214261,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": true,
+        "bestFee": 3000,
+        "amountOut": 13858331613815669,
+        "allRoutes": [
+          {
+            "fee": 500,
+            "amountOut": 79394038410716
+          },
+          {
+            "fee": 3000,
+            "amountOut": 13858331613815669
+          }
+        ]
+      },
+      "usdgRoute": {
+        "available": true,
+        "bestFee": 10000,
+        "amountOut": 5545585450485211,
+        "allRoutes": [
+          {
+            "fee": 10000,
+            "amountOut": 5545585450485211
+          }
+        ]
+      },
+      "ethPaymentRouteAvailable": true
+    },
+    "errors": [],
+    "hardPass": true
+  },
+  {
+    "symbol": "TSM",
+    "name": "Taiwan Semiconductor Manufacturing \u2022 Robinhood Token",
+    "token": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x58ffe4a942d3885baa22d7520691f611ef09e7aa.png",
+    "uid": "0x000000000000000000000000000000002e890a0884474abd86ba66b19722e827",
+    "oracleFeed": "0x874cF94aa8eC88Fd9560094dD065f2fB3E41Fc2F",
+    "oracleFeedName": "Robinhood TSM / USD",
+    "oracleDecimals": 8,
+    "oracleHeartbeat": 86400,
+    "oracleThreshold": 0.5,
+    "scoopMaxAge": 345600,
+    "liveChecks": {
+      "hasCode": true,
+      "liveSymbol": "TSM",
+      "symbolMatches": true,
+      "tokenDecimals": 18,
+      "decimals18": true,
+      "oraclePaused": false,
+      "uiMultiplier": 1000000000000000000,
+      "feedHasCode": true,
+      "feedDescription": "Robinhood TSM / USD",
+      "feedDecimals": 8,
+      "feedDecimals8": true,
+      "feedAnswer": 42847500000,
+      "feedUpdatedAt": 1788540969,
+      "feedAgeSeconds": 227487,
+      "feedPositive": true,
+      "feedFresh": true,
+      "roundComplete": true,
+      "alreadyRegistered": false,
+      "alreadyOracleConfigured": false,
+      "wethRoute": {
+        "available": true,
+        "bestFee": 3000,
+        "amountOut": 57106190562933677,
+        "allRoutes": [
+          {
+            "fee": 3000,
+            "amountOut": 57106190562933677
+          }
+        ]
+      },
+      "usdgRoute": {
+        "available": true,
+        "bestFee": 10000,
+        "amountOut": 22969910255890089,
+        "allRoutes": [
+          {
+            "fee": 10000,
+            "amountOut": 22969910255890089
+          }
+        ]
+      },
+      "ethPaymentRouteAvailable": true
+    },
+    "errors": [],
+    "hardPass": true
+  }
+]

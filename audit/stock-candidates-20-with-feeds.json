@@ -1,0 +1,443 @@
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple \u2022 Robinhood Token",
+    "token": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000566080061092436",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xaf3d76f1834a1d425780943c99ea8a608f8a93f9.png",
+    "uid": "0x00000000000000000000000000000000c2425be3658540dd8e2424cbf3c5c649",
+    "feedMatches": [
+      {
+        "assetName": "Apple (Robinhood Tokenized Equity)",
+        "name": "Robinhood AAPL / USD",
+        "proxyAddress": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
+        "contractAddress": "0xBb11A21267cFDb63d4935d99a499133DD1744ACb",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "AMC",
+    "name": "AMC Entertainment \u2022 Robinhood Token",
+    "token": "0x05a3d1Cd21d0C88145E82600E62e7E496e0F222B",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x05a3d1cd21d0c88145e82600e62e7e496e0f222b.png",
+    "uid": "0x00000000000000000000000000000000c40c1aabe3514588ae86defffe868021",
+    "feedMatches": []
+  },
+  {
+    "symbol": "AMD",
+    "name": "AMD \u2022 Robinhood Token",
+    "token": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x86923f96303d656e4aa86d9d42d1e57ad2023fdc.png",
+    "uid": "0x0000000000000000000000000000000086aeaac3c7d9422c90f6fd41aff0eaf7",
+    "feedMatches": [
+      {
+        "assetName": "Advanced Micro Devices / AMD (Robinhood Tokenized Equity)",
+        "name": "Robinhood AMD / USD",
+        "proxyAddress": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
+        "contractAddress": "0xdAD54b8Ee51Af258e5A6Faa9a84a3300f4775f7d",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "AMZN",
+    "name": "Amazon \u2022 Robinhood Token",
+    "token": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x12f190a9f9d7d37a250758b26824b97ce941bf54.png",
+    "uid": "0x000000000000000000000000000000004f508d5e2a7042299694d85c2f362ad2",
+    "feedMatches": [
+      {
+        "assetName": "Amazon (Robinhood Tokenized Equity)",
+        "name": "Robinhood AMZN / USD",
+        "proxyAddress": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
+        "contractAddress": "0x93503dFc97157cdB8aADcCaf70452621d598FDeb",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "BABA",
+    "name": "Alibaba \u2022 Robinhood Token",
+    "token": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xad25ac6c84d497db898fa1e8387bf6af3532a1c4.png",
+    "uid": "0x000000000000000000000000000000006ef9da606f504495ad7de6a7a58b87cd",
+    "feedMatches": [
+      {
+        "assetName": "Alibaba Group Holding Ltd (ADRs) (Robinhood Tokenized Equity)",
+        "name": "Robinhood BABA / USD",
+        "proxyAddress": "0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984",
+        "contractAddress": "0xFf5F85e4888782e66f1dd9cabaDF4822Fbeb1439",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "COIN",
+    "name": "Coinbase \u2022 Robinhood Token",
+    "token": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x6330d8c3178a418788df01a47479c0ce7ccf450b.png",
+    "uid": "0x00000000000000000000000000000000970b46dbdece4ae4958a53815e62a85a",
+    "feedMatches": [
+      {
+        "assetName": "Coinbase (Robinhood Tokenized Equity)",
+        "name": "Robinhood COIN / USD",
+        "proxyAddress": "0xA3a468A452940B7D6b69991207B508c609a98Ef2",
+        "contractAddress": "0x30398b0B0df82a009bB2D507BC7fE1dc6d3ca294",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Sky Dollar",
+        "name": "USDS / USD",
+        "proxyAddress": "0x2D88D75b625633dCcd65d9d53BfDD3Aea2d8e84f",
+        "contractAddress": "0x48f8CB1AbaD9f69c0BF3475bfC282e493f1C2Aa1",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Tether USD",
+        "name": "USDT / USD",
+        "proxyAddress": "0xbf3550B6fAe1671da7C238Af12e03Ac586BEf3B1",
+        "contractAddress": "0x5644F992083C57aF913d5BdebA1D046c92Fb3424",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Euro Coin",
+        "name": "EURC / USD",
+        "proxyAddress": "0xfF2B10c1973eD10c841434f98e456d8f3a0D7DD8",
+        "contractAddress": "0x7035B3E2FF9621A6f97aAFE5A5E3E5bbe718BADf",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Global Dollar",
+        "name": "USDG / USD",
+        "proxyAddress": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+        "contractAddress": "0x8bEeE3503F6860D5dac4cE26b5eEe92982951c2e",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Wrapped Bitcoin",
+        "name": "WBTC / USD",
+        "proxyAddress": "0x62107b0d3adA75fc1697fD342d99eed947a3aA5E",
+        "contractAddress": "0x983F726BF320Cdc1fdaE041DbA782cD08a55842F",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "USD Coin",
+        "name": "USDC / USD",
+        "proxyAddress": "0x9e6f4605992a899eE2999999F3Ec80C41F452546",
+        "contractAddress": "0xDADD7441395913A7468FAC020709e86AEfC04Ef9",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Coinbase Wrapped BTC",
+        "name": "CBBTC / USD",
+        "proxyAddress": "0x0009cD492adf8167f9eEBf1293556A673530a21a",
+        "contractAddress": "0xFaA5FDA549575E3B602ad70e4bd8020A28387F96",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Bitcoin",
+        "name": "BTC / USD",
+        "proxyAddress": "0xa2c5184bF03d373Dc9dE4876eb4Bce595B460251",
+        "contractAddress": "0xc5845F87AD59a7a3D4bF9B90a0C19dbA38475EeC",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      },
+      {
+        "assetName": "Ethena USDe",
+        "name": "USDE / USD",
+        "proxyAddress": "0xb9fB4e65744E4178894f7C61CF80E8a48A5f224a",
+        "contractAddress": "0xfCa395953F9d4e53c2D61be67Ff5337dE6d8f06C",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "CRM",
+    "name": "Salesforce \u2022 Robinhood Token",
+    "token": "0xd95B44124e475743a7589e68F3D74008A5536D44",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xd95b44124e475743a7589e68f3d74008a5536d44.png",
+    "uid": "0x00000000000000000000000000000000022015c295294037bfe416d3e45327b9",
+    "feedMatches": []
+  },
+  {
+    "symbol": "GME",
+    "name": "GameStop \u2022 Robinhood Token",
+    "token": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x1b0e319c6a659f002271b69db8a7df2f911c153e.png",
+    "uid": "0x00000000000000000000000000000000c5ac9420091c4f9eb3ff1fdd1d2b60c6",
+    "feedMatches": [
+      {
+        "assetName": "Gamestop (Robinhood Tokenized Equity)",
+        "name": "Robinhood GME / USD",
+        "proxyAddress": "0x27C71df6A64fB476468EdF256CF72c038baB5B67",
+        "contractAddress": "0xf83Cde62D1Cd90dE8d2Bf3332B90c590985aD679",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "GOOGL",
+    "name": "Alphabet Class A \u2022 Robinhood Token",
+    "token": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3.png",
+    "uid": "0x0000000000000000000000000000000053b69e2076884cc9ae2ada9bc7095df3",
+    "feedMatches": [
+      {
+        "assetName": "Alphabet (Robinhood Tokenized Equity)",
+        "name": "Robinhood GOOGL / USD",
+        "proxyAddress": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
+        "contractAddress": "0x11eD6d598eF565DDA86fAfE7E779303e7CC6b2Bd",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "INTC",
+    "name": "Intel \u2022 Robinhood Token",
+    "token": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xc72b96e0e48ecd4dc75e1e45396e26300bc39681.png",
+    "uid": "0x000000000000000000000000000000002eb75a2c20d7423881b4f812c27d0abe",
+    "feedMatches": [
+      {
+        "assetName": "Intel Corp (Robinhood Tokenized Equity)",
+        "name": "Robinhood INTC / USD",
+        "proxyAddress": "0x3f390C5C24628Ac7C489515402235FeAD71D1913",
+        "contractAddress": "0x95fB52f75aEcBCa8E12aA4403f840C8bc18CFbd4",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "LULU",
+    "name": "Lululemon \u2022 Robinhood Token",
+    "token": "0x4e62068525Ab11FE768e29dfD00ef909B9803016",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x4e62068525ab11fe768e29dfd00ef909b9803016.png",
+    "uid": "0x000000000000000000000000000000005b0a57398f2f4322b011fb98da1f785f",
+    "feedMatches": []
+  },
+  {
+    "symbol": "META",
+    "name": "Meta Platforms \u2022 Robinhood Token",
+    "token": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xc0d6457c16cc70d6790dd43521c899c87ce02f35.png",
+    "uid": "0x00000000000000000000000000000000343e7beca03644bcba2e50b8236784f5",
+    "feedMatches": [
+      {
+        "assetName": "Meta (Robinhood Tokenized Equity)",
+        "name": "Robinhood META / USD",
+        "proxyAddress": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1",
+        "contractAddress": "0xc190B6164B9e320A6400cdaB0085a2e0E2b9738e",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "MSFT",
+    "name": "Microsoft \u2022 Robinhood Token",
+    "token": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xe93237c50d904957cf27e7b1133b510c669c2e74.png",
+    "uid": "0x00000000000000000000000000000000307bb0113ca54f93adf80f4ff2bf681a",
+    "feedMatches": [
+      {
+        "assetName": "Microsoft (Robinhood Tokenized Equity)",
+        "name": "Robinhood MSFT / USD",
+        "proxyAddress": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
+        "contractAddress": "0xc3b117F52cf17Dd4369eaF5eaf7cF0E2f91b4E30",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "MSTR",
+    "name": "Strategy Inc. \u2022 Robinhood Token",
+    "token": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xec262a75e413fafd0df80480274532c79d42da09.png",
+    "uid": "0x00000000000000000000000000000000c91ba6e57a1c493f99cae2174e43c86e",
+    "feedMatches": [
+      {
+        "assetName": "Microstrategy Inc Class A (Robinhood Tokenized Equity",
+        "name": "Robinhood MSTR / USD",
+        "proxyAddress": "0x396118bdFB181e6240E74D243F266B061c0edc3D",
+        "contractAddress": "0x55bd01F666c99E4590E084FdEfF88041BB50CCD1",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "NFLX",
+    "name": "Netflix \u2022 Robinhood Token",
+    "token": "0xE0444EF8BF4eD74f74FD73686e2ddF4C1c5591E8",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8.png",
+    "uid": "0x00000000000000000000000000000000500f14b2a92f44d6998e0e2b9cc9387e",
+    "feedMatches": []
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA \u2022 Robinhood Token",
+    "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec.png",
+    "uid": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+    "feedMatches": [
+      {
+        "assetName": "Nvidia (Robinhood Tokenized Equity)",
+        "name": "Robinhood NVDA / USD",
+        "proxyAddress": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+        "contractAddress": "0xC9d16E4f2569b9E3ea0468fD85844953713DC2a2",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "PLTR",
+    "name": "Palantir Technologies \u2022 Robinhood Token",
+    "token": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a.png",
+    "uid": "0x000000000000000000000000000000007454a90b4aab491389ce9fa3c485de42",
+    "feedMatches": [
+      {
+        "assetName": "Palantir Technologies Inc (Robinhood Tokenized Equity)",
+        "name": "Robinhood PLTR / USD",
+        "proxyAddress": "0x820ABedFF239034956B7A9d2F0a331f9F075eB4c",
+        "contractAddress": "0x315afd0f71D5407B99ad19ab001a67af40fbAAF4",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  },
+  {
+    "symbol": "RBLX",
+    "name": "Roblox \u2022 Robinhood Token",
+    "token": "0xF0C4BF4C582cb3836e98394b1d4e7B7281101bE8",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8.png",
+    "uid": "0x00000000000000000000000000000000eed533334fe84ce08253d5b1dcff7373",
+    "feedMatches": []
+  },
+  {
+    "symbol": "RDDT",
+    "name": "Reddit \u2022 Robinhood Token",
+    "token": "0x05b37Fb53A299a1b874A619e1c4C404D52C36F4C",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x05b37fb53a299a1b874a619e1c4c404d52c36f4c.png",
+    "uid": "0x000000000000000000000000000000003bc66ed8f2314091a365604b4c01aef5",
+    "feedMatches": []
+  },
+  {
+    "symbol": "TSLA",
+    "name": "Tesla \u2022 Robinhood Token",
+    "token": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x322f0929c4625ed5bad873c95208d54e1c003b2d.png",
+    "uid": "0x00000000000000000000000000000000cfece3244ea34bb29414dd9488b32d9f",
+    "feedMatches": [
+      {
+        "assetName": "Tesla (Robinhood Tokenized Equity)",
+        "name": "Robinhood TSLA / USD",
+        "proxyAddress": "0x4A1166a659A55625345e9515b32adECea5547C38",
+        "contractAddress": "0x7A6b81ba7FbCB90104d8C496158Cf383cD7233b1",
+        "decimals": 8,
+        "heartbeat": 86400,
+        "threshold": 0.5
+      }
+    ]
+  }
+]

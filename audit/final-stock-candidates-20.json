@@ -1,0 +1,202 @@
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple • Robinhood Token",
+    "token": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000566080061092436",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xaf3d76f1834a1d425780943c99ea8a608f8a93f9.png",
+    "uid": "0x00000000000000000000000000000000c2425be3658540dd8e2424cbf3c5c649"
+  },
+  {
+    "symbol": "AMD",
+    "name": "AMD • Robinhood Token",
+    "token": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x86923f96303d656e4aa86d9d42d1e57ad2023fdc.png",
+    "uid": "0x0000000000000000000000000000000086aeaac3c7d9422c90f6fd41aff0eaf7"
+  },
+  {
+    "symbol": "AMZN",
+    "name": "Amazon • Robinhood Token",
+    "token": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x12f190a9f9d7d37a250758b26824b97ce941bf54.png",
+    "uid": "0x000000000000000000000000000000004f508d5e2a7042299694d85c2f362ad2"
+  },
+  {
+    "symbol": "BABA",
+    "name": "Alibaba • Robinhood Token",
+    "token": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xad25ac6c84d497db898fa1e8387bf6af3532a1c4.png",
+    "uid": "0x000000000000000000000000000000006ef9da606f504495ad7de6a7a58b87cd"
+  },
+  {
+    "symbol": "COIN",
+    "name": "Coinbase • Robinhood Token",
+    "token": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x6330d8c3178a418788df01a47479c0ce7ccf450b.png",
+    "uid": "0x00000000000000000000000000000000970b46dbdece4ae4958a53815e62a85a"
+  },
+  {
+    "symbol": "CRCL",
+    "name": "Circle Internet Group • Robinhood Token",
+    "token": "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5.png",
+    "uid": "0x000000000000000000000000000000005047f8f8a1a34a9ebee52a4155570807"
+  },
+  {
+    "symbol": "CRWV",
+    "name": "CoreWeave • Robinhood Token",
+    "token": "0x5f10A1C971B69e47e059e1dC91901B59b3fB49C3",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3.png",
+    "uid": "0x000000000000000000000000000000007f48cdbfaced4ff4b34fbc832f449c33"
+  },
+  {
+    "symbol": "GME",
+    "name": "GameStop • Robinhood Token",
+    "token": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x1b0e319c6a659f002271b69db8a7df2f911c153e.png",
+    "uid": "0x00000000000000000000000000000000c5ac9420091c4f9eb3ff1fdd1d2b60c6"
+  },
+  {
+    "symbol": "GOOGL",
+    "name": "Alphabet Class A • Robinhood Token",
+    "token": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3.png",
+    "uid": "0x0000000000000000000000000000000053b69e2076884cc9ae2ada9bc7095df3"
+  },
+  {
+    "symbol": "INTC",
+    "name": "Intel • Robinhood Token",
+    "token": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xc72b96e0e48ecd4dc75e1e45396e26300bc39681.png",
+    "uid": "0x000000000000000000000000000000002eb75a2c20d7423881b4f812c27d0abe"
+  },
+  {
+    "symbol": "IONQ",
+    "name": "IonQ • Robinhood Token",
+    "token": "0x558378E000D634A36593E338eBacdd6207640EfE",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x558378e000d634a36593e338ebacdd6207640efe.png",
+    "uid": "0x00000000000000000000000000000000b6f6e756b7ff46b88238c18d0bc07fd4"
+  },
+  {
+    "symbol": "META",
+    "name": "Meta Platforms • Robinhood Token",
+    "token": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xc0d6457c16cc70d6790dd43521c899c87ce02f35.png",
+    "uid": "0x00000000000000000000000000000000343e7beca03644bcba2e50b8236784f5"
+  },
+  {
+    "symbol": "MSFT",
+    "name": "Microsoft • Robinhood Token",
+    "token": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xe93237c50d904957cf27e7b1133b510c669c2e74.png",
+    "uid": "0x00000000000000000000000000000000307bb0113ca54f93adf80f4ff2bf681a"
+  },
+  {
+    "symbol": "MSTR",
+    "name": "Strategy Inc. • Robinhood Token",
+    "token": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xec262a75e413fafd0df80480274532c79d42da09.png",
+    "uid": "0x00000000000000000000000000000000c91ba6e57a1c493f99cae2174e43c86e"
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA • Robinhood Token",
+    "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec.png",
+    "uid": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5"
+  },
+  {
+    "symbol": "ORCL",
+    "name": "Oracle • Robinhood Token",
+    "token": "0xb0992820E760d836549ba69BC7598b4af75dEE03",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.002210914971013375",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0xb0992820e760d836549ba69bc7598b4af75dee03.png",
+    "uid": "0x00000000000000000000000000000000be23b7c535e841a3b1bae97bc0166eae"
+  },
+  {
+    "symbol": "PLTR",
+    "name": "Palantir Technologies • Robinhood Token",
+    "token": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a.png",
+    "uid": "0x000000000000000000000000000000007454a90b4aab491389ce9fa3c485de42"
+  },
+  {
+    "symbol": "RKLB",
+    "name": "Rocket Lab Corporation • Robinhood Token",
+    "token": "0x3b14C39E89D60D627b42a1A4CA45b5bb45Fc12e2",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2.png",
+    "uid": "0x000000000000000000000000000000007cacd0cd4c0547d480e89459e648592b"
+  },
+  {
+    "symbol": "SPCX",
+    "name": "Space Exploration Technologies Corp. Class A Common Stock • Robinhood Token",
+    "token": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea.png",
+    "uid": "0x000000000000000000000000000000001aa9c9cc0bf34c5e95cfe7168463d310"
+  },
+  {
+    "symbol": "TSLA",
+    "name": "Tesla • Robinhood Token",
+    "token": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+    "decimals": 18,
+    "status": "ASSET_STATUS_ACTIVE",
+    "multiplier": "1.000000000000000000",
+    "logoUrl": "https://cdn.robinhood.com/ncw_assets/logos/0x322f0929c4625ed5bad873c95208d54e1c003b2d.png",
+    "uid": "0x00000000000000000000000000000000cfece3244ea34bb29414dd9488b32d9f"
+  }
+]

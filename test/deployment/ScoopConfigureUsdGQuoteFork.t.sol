@@ -58,7 +58,7 @@ contract ScoopConfigureUsdGQuoteForkTest is Test {
     address internal creator;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"));
+        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"), 56_634_459);
         require(block.chainid == 4663, "wrong chain");
         harness = new ConfigureUsdGQuoteHarness();
         creator = makeAddr("usdgConfigCreator_FORK_ONLY");

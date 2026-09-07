@@ -77,17 +77,32 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
         console2.log("USDG implementation", impl);
     }
 
-    function test_live_scoopUsdGUnconfigured() public view {
-        assertFalse(QUOTE_REGISTRY.isRegistered(USDG));
-        assertFalse(QUOTE_REGISTRY.isEnabled(USDG));
-        assertFalse(PRICE_ORACLE.isConfigured(USDG));
-        assertFalse(PRICE_ORACLE.isEnabled(USDG));
+    function test_live_scoopUsdGConfigured() public view {
+        assertTrue(QUOTE_REGISTRY.isRegistered(USDG));
+        assertTrue(QUOTE_REGISTRY.isEnabled(USDG));
+        assertEq(
+            uint8(QUOTE_REGISTRY.quoteType(USDG)),
+            uint8(ScoopQuoteRegistry.QuoteType.Scoop)
+        );
+
+        assertTrue(PRICE_ORACLE.isConfigured(USDG));
+        assertTrue(PRICE_ORACLE.isEnabled(USDG));
+
+        ScoopPriceOracle.PriceFeedConfig memory cfg =
+            PRICE_ORACLE.getFeedConfig(USDG);
+
+        assertEq(cfg.feed, USDG_USD_FEED);
+        assertEq(cfg.maxAge, USDG_MAX_AGE);
+        assertEq(cfg.feedDecimals, 8);
+        assertTrue(cfg.enabled);
+        assertGt(PRICE_ORACLE.getPriceUsd(USDG), 0);
 
         assertTrue(QUOTE_REGISTRY.isRegistered(address(0)));
         assertTrue(QUOTE_REGISTRY.isEnabled(address(0)));
         assertTrue(PRICE_ORACLE.isConfigured(address(0)));
         assertTrue(PRICE_ORACLE.isEnabled(address(0)));
-        assertEq(QUOTE_REGISTRY.registeredQuoteCount(), 1);
+
+        assertEq(QUOTE_REGISTRY.registeredQuoteCount(), 2);
     }
 
     function test_live_authoritiesAndFee() public view {
@@ -233,6 +248,11 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     function _configureUsdGOnFork() internal {
+        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"), 56_634_459);
+
+        // Fork-local test funding from setUp() does not carry across createSelectFork().
+        vm.deal(launcher, 10 ether);
+
         assertFalse(QUOTE_REGISTRY.isRegistered(USDG));
         assertFalse(PRICE_ORACLE.isConfigured(USDG));
 
