@@ -28,35 +28,35 @@
       "feedDecimals8": true,
       "feedAnswer": 32051633525,
       "feedUpdatedAt": 1788551486,
-      "feedAgeSeconds": 217120,
+      "feedAgeSeconds": 223448,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 77447643680110501,
+        "amountOut": 77377536473643122,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 77447643680110501
+            "amountOut": 77377536473643122
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 31105594516086027,
+        "amountOut": 31099334011213685,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 31105594516086027
+            "amountOut": 31099334011213685
           },
           {
             "fee": 3000,
-            "amountOut": 31058577833927925
+            "amountOut": 31041615008287954
           },
           {
             "fee": 10000,
@@ -98,12 +98,12 @@
       "feedDecimals8": true,
       "feedAnswer": 47770045000,
       "feedUpdatedAt": 1788551776,
-      "feedAgeSeconds": 216830,
+      "feedAgeSeconds": 223158,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -113,15 +113,15 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 20566092568375308,
+        "amountOut": 20552732150300031,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 20566092568375308
+            "amountOut": 20552732150300031
           },
           {
             "fee": 10000,
-            "amountOut": 20536822746700690
+            "amountOut": 20530099506842675
           }
         ]
       },
@@ -159,31 +159,26 @@
       "feedDecimals8": true,
       "feedAnswer": 25872500000,
       "feedUpdatedAt": 1788551168,
-      "feedAgeSeconds": 217438,
+      "feedAgeSeconds": 223766,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
-        "available": true,
-        "bestFee": 10000,
-        "amountOut": 95421142151588966,
-        "allRoutes": [
-          {
-            "fee": 10000,
-            "amountOut": 95421142151588966
-          }
-        ]
+        "available": false,
+        "bestFee": null,
+        "amountOut": null,
+        "allRoutes": []
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 38525867662913211,
+        "amountOut": 38521075567874878,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 38525867662913211
+            "amountOut": 38521075567874878
           }
         ]
       },
@@ -221,12 +216,12 @@
       "feedDecimals8": true,
       "feedAnswer": 171180267784,
       "feedUpdatedAt": 1788551452,
-      "feedAgeSeconds": 217154,
+      "feedAgeSeconds": 223482,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -236,11 +231,11 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 5819948087839682,
+        "amountOut": 5812192167910769,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 5819948087839682
+            "amountOut": 5812192167910769
           },
           {
             "fee": 10000,
@@ -282,12 +277,12 @@
       "feedDecimals8": true,
       "feedAnswer": 11283500000,
       "feedUpdatedAt": 1788534717,
-      "feedAgeSeconds": 233889,
+      "feedAgeSeconds": 240217,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -297,7 +292,7 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 88189283527677607,
+        "amountOut": 88236711266016101,
         "allRoutes": [
           {
             "fee": 500,
@@ -305,7 +300,7 @@
           },
           {
             "fee": 3000,
-            "amountOut": 88189283527677607
+            "amountOut": 88236711266016101
           },
           {
             "fee": 10000,
@@ -347,20 +342,20 @@
       "feedDecimals8": true,
       "feedAnswer": 18452710000,
       "feedUpdatedAt": 1788551911,
-      "feedAgeSeconds": 216695,
+      "feedAgeSeconds": 223023,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 133596876479534160,
+        "amountOut": 133613978530380388,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 133596876479534160
+            "amountOut": 133613978530380388
           }
         ]
       },
@@ -404,31 +399,31 @@
       "feedDecimals8": true,
       "feedAnswer": 10145500000,
       "feedUpdatedAt": 1788546959,
-      "feedAgeSeconds": 221647,
+      "feedAgeSeconds": 227975,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 10000,
-        "amountOut": 238277690657877449,
+        "amountOut": 238469232186177210,
         "allRoutes": [
           {
             "fee": 10000,
-            "amountOut": 238277690657877449
+            "amountOut": 238469232186177210
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 97061072553727767,
+        "amountOut": 96741945097392472,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 97061072553727767
+            "amountOut": 96741945097392472
           },
           {
             "fee": 10000,
@@ -470,39 +465,39 @@
       "feedDecimals8": true,
       "feedAnswer": 1919500000,
       "feedUpdatedAt": 1788549068,
-      "feedAgeSeconds": 219538,
+      "feedAgeSeconds": 225866,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 1288731176769905429,
+        "amountOut": 1287664400075720438,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 1288731176769905429
+            "amountOut": 1287664400075720438
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 517866852484940290,
+        "amountOut": 517697008194282847,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 517866852484940290
+            "amountOut": 517697008194282847
           },
           {
             "fee": 3000,
-            "amountOut": 516920042874494537
+            "amountOut": 517584322516807422
           },
           {
             "fee": 10000,
-            "amountOut": 512626862623318310
+            "amountOut": 512540595200544146
           }
         ]
       },
@@ -540,35 +535,35 @@
       "feedDecimals8": true,
       "feedAnswer": 33827500000,
       "feedUpdatedAt": 1788532041,
-      "feedAgeSeconds": 236565,
+      "feedAgeSeconds": 242893,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 100,
-        "amountOut": 73401759098258185,
+        "amountOut": 73160978726387022,
         "allRoutes": [
           {
             "fee": 100,
-            "amountOut": 73401759098258185
+            "amountOut": 73160978726387022
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 29465706285711311,
+        "amountOut": 29426677155384853,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 29465706285711311
+            "amountOut": 29426677155384853
           },
           {
             "fee": 3000,
-            "amountOut": 29394080688111084
+            "amountOut": 29359097841933995
           }
         ]
       },
@@ -606,12 +601,12 @@
       "feedDecimals8": true,
       "feedAnswer": 9547605000,
       "feedUpdatedAt": 1788551510,
-      "feedAgeSeconds": 217096,
+      "feedAgeSeconds": 223424,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -621,11 +616,11 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 101181013905956611,
+        "amountOut": 101220236617472096,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 101181013905956611
+            "amountOut": 101220236617472096
           }
         ]
       },
@@ -663,35 +658,35 @@
       "feedDecimals8": true,
       "feedAnswer": 61564000000,
       "feedUpdatedAt": 1788549111,
-      "feedAgeSeconds": 219495,
+      "feedAgeSeconds": 225823,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 40391943226267553,
+        "amountOut": 40409758261170999,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 40391943226267553
+            "amountOut": 40409758261170999
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 16230610664345228,
+        "amountOut": 16231502318759235,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 16230610664345228
+            "amountOut": 16231502318759235
           },
           {
             "fee": 10000,
-            "amountOut": 16139418167087186
+            "amountOut": 16136832198738299
           }
         ]
       },
@@ -729,12 +724,12 @@
       "feedDecimals8": true,
       "feedAnswer": 50053220000,
       "feedUpdatedAt": 1788535022,
-      "feedAgeSeconds": 233584,
+      "feedAgeSeconds": 239912,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -744,11 +739,11 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 19894284545667060,
+        "amountOut": 19888881643198254,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 19894284545667060
+            "amountOut": 19888881643198254
           }
         ]
       },
@@ -786,35 +781,35 @@
       "feedDecimals8": true,
       "feedAnswer": 14229650000,
       "feedUpdatedAt": 1788559061,
-      "feedAgeSeconds": 209545,
+      "feedAgeSeconds": 215873,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 10000,
-        "amountOut": 169152411217099936,
+        "amountOut": 169023870756333024,
         "allRoutes": [
           {
             "fee": 10000,
-            "amountOut": 169152411217099936
+            "amountOut": 169023870756333024
           }
         ]
       },
       "usdgRoute": {
         "available": true,
-        "bestFee": 3000,
-        "amountOut": 68061658684920883,
+        "bestFee": 10000,
+        "amountOut": 67725282005460113,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 68061658684920883
+            "amountOut": 67689778865464881
           },
           {
             "fee": 10000,
-            "amountOut": 67742623543746343
+            "amountOut": 67725282005460113
           }
         ]
       },
@@ -852,35 +847,35 @@
       "feedDecimals8": true,
       "feedAnswer": 101479197432,
       "feedUpdatedAt": 1788551816,
-      "feedAgeSeconds": 216790,
+      "feedAgeSeconds": 223118,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 10000,
-        "amountOut": 23759899509814744,
+        "amountOut": 23659242008555968,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 23206623968988069
+            "amountOut": 23188597367877194
           },
           {
             "fee": 10000,
-            "amountOut": 23759899509814744
+            "amountOut": 23659242008555968
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 9549755421445498,
+        "amountOut": 9538382382890646,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 9549755421445498
+            "amountOut": 9538382382890646
           }
         ]
       },
@@ -918,31 +913,31 @@
       "feedDecimals8": true,
       "feedAnswer": 23023665000,
       "feedUpdatedAt": 1788543984,
-      "feedAgeSeconds": 224622,
+      "feedAgeSeconds": 230950,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 106951881667821907,
+        "amountOut": 106977159375493837,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 106951881667821907
+            "amountOut": 106977159375493837
           },
           {
             "fee": 3000,
-            "amountOut": 106557184596289320
+            "amountOut": 106657780001467118
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 42944198353502478,
+        "amountOut": 42999401389960428,
         "allRoutes": [
           {
             "fee": 100,
@@ -950,11 +945,11 @@
           },
           {
             "fee": 500,
-            "amountOut": 42944198353502478
+            "amountOut": 42999401389960428
           },
           {
             "fee": 3000,
-            "amountOut": 42925849989315694
+            "amountOut": 42868598326973883
           }
         ]
       },
@@ -992,12 +987,12 @@
       "feedDecimals8": true,
       "feedAnswer": 17394980000,
       "feedUpdatedAt": 1788548733,
-      "feedAgeSeconds": 219873,
+      "feedAgeSeconds": 226201,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": false,
         "bestFee": null,
@@ -1007,11 +1002,11 @@
       "usdgRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 56582874284255571,
+        "amountOut": 56650384173627546,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 56582874284255571
+            "amountOut": 56650384173627546
           }
         ]
       },
@@ -1049,16 +1044,16 @@
       "feedDecimals8": true,
       "feedAnswer": 172964645000,
       "feedUpdatedAt": 1788554195,
-      "feedAgeSeconds": 214411,
+      "feedAgeSeconds": 220739,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 13885591758597137,
+        "amountOut": 13880300478159791,
         "allRoutes": [
           {
             "fee": 500,
@@ -1066,18 +1061,18 @@
           },
           {
             "fee": 3000,
-            "amountOut": 13885591758597137
+            "amountOut": 13880300478159791
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 10000,
-        "amountOut": 5545585450485211,
+        "amountOut": 5545767164622981,
         "allRoutes": [
           {
             "fee": 10000,
-            "amountOut": 5545585450485211
+            "amountOut": 5545767164622981
           }
         ]
       },
@@ -1115,27 +1110,27 @@
       "feedDecimals8": true,
       "feedAnswer": 14795970000,
       "feedUpdatedAt": 1788551654,
-      "feedAgeSeconds": 216952,
+      "feedAgeSeconds": 223280,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 165011079616901213,
+        "amountOut": 165008199108673560,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 165011079616901213
+            "amountOut": 165008199108673560
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 66287396036069508,
+        "amountOut": 66359311801834844,
         "allRoutes": [
           {
             "fee": 100,
@@ -1143,11 +1138,11 @@
           },
           {
             "fee": 500,
-            "amountOut": 66287396036069508
+            "amountOut": 66359311801834844
           },
           {
             "fee": 3000,
-            "amountOut": 66080102828528549
+            "amountOut": 66074597519676445
           },
           {
             "fee": 10000,
@@ -1189,35 +1184,35 @@
       "feedDecimals8": true,
       "feedAnswer": 35398495000,
       "feedUpdatedAt": 1788545676,
-      "feedAgeSeconds": 222930,
+      "feedAgeSeconds": 229258,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 69760062424992101,
+        "amountOut": 69907354818192809,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 69760062424992101
+            "amountOut": 69907354818192809
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 500,
-        "amountOut": 28125382314359317,
+        "amountOut": 28123422572629549,
         "allRoutes": [
           {
             "fee": 500,
-            "amountOut": 28125382314359317
+            "amountOut": 28123422572629549
           },
           {
             "fee": 3000,
-            "amountOut": 28028564279450791
+            "amountOut": 28031720083007103
           },
           {
             "fee": 10000,
@@ -1259,31 +1254,31 @@
       "feedDecimals8": true,
       "feedAnswer": 42847500000,
       "feedUpdatedAt": 1788540969,
-      "feedAgeSeconds": 227637,
+      "feedAgeSeconds": 233965,
       "feedPositive": true,
       "feedFresh": true,
       "roundComplete": true,
-      "alreadyRegistered": false,
-      "alreadyOracleConfigured": false,
+      "alreadyRegistered": true,
+      "alreadyOracleConfigured": true,
       "wethRoute": {
         "available": true,
         "bestFee": 3000,
-        "amountOut": 57106190562933677,
+        "amountOut": 57044079669336584,
         "allRoutes": [
           {
             "fee": 3000,
-            "amountOut": 57106190562933677
+            "amountOut": 57044079669336584
           }
         ]
       },
       "usdgRoute": {
         "available": true,
         "bestFee": 10000,
-        "amountOut": 22969910255890089,
+        "amountOut": 22893236525535874,
         "allRoutes": [
           {
             "fee": 10000,
-            "amountOut": 22969910255890089
+            "amountOut": 22893236525535874
           }
         ]
       },
