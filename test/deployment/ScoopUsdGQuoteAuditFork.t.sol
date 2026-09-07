@@ -102,7 +102,7 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
         assertTrue(PRICE_ORACLE.isConfigured(address(0)));
         assertTrue(PRICE_ORACLE.isEnabled(address(0)));
 
-        assertEq(QUOTE_REGISTRY.registeredQuoteCount(), 2);
+        assertEq(QUOTE_REGISTRY.registeredQuoteCount(), 4);
     }
 
     function test_live_authoritiesAndFee() public view {

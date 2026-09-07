@@ -32,7 +32,8 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
     }
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"));
+        // Pin immediately before AAPL oracle configuration (tx at block 56_711_113).
+        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"), 56_711_112);
         require(block.chainid == 4663, "wrong chain");
     }
 
