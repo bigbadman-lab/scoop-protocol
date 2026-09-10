@@ -32,6 +32,7 @@ import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMath} from "../src/libraries/ScoopLaunchMath.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 import {ScoopLiquidityCurveHelpers} from "./helpers/ScoopLiquidityCurveHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -487,7 +488,10 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             creatorId: walletCreatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: _nextSalt()
+            salt: _nextSalt(),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         return factory.launch{value: 0.0005 ether}(params);
@@ -505,7 +509,10 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
             creatorId: walletCreatorId,
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         return factory.launch{value: 0.0005 ether}(params);
@@ -688,7 +695,10 @@ contract ScoopLiquidityCurveAnalysisForkTest is Test {
                 creatorId: walletCreatorId,
                 quoteAsset: AAPL_TOKEN,
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: salt
+                salt: salt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             });
             deal(AAPL_TOKEN, deployer, sizes[i]);
             vm.prank(deployer);

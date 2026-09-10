@@ -14,6 +14,8 @@ import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
 import {IAggregatorV3} from "../../src/interfaces/IAggregatorV3.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+import {ScoopFeeConfigFactoryGuard} from "../helpers/ScoopFeeConfigFactoryGuard.sol";
 
 /// @dev External wrapper so `vm.expectRevert` observes library reverts at correct call depth.
 contract ConfigureUsdGQuoteHarness {
@@ -194,6 +196,7 @@ contract ScoopConfigureUsdGQuoteForkTest is Test {
     }
 
     function test_fork_fullLaunchRehearsalAgainstUsdG() public {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         vm.startPrank(Logic.AUTHORITY);
         Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
         vm.stopPrank();
@@ -209,7 +212,10 @@ contract ScoopConfigureUsdGQuoteForkTest is Test {
             creatorId: CREATOR_REGISTRY.walletCreatorId(creator),
             quoteAsset: Logic.USDG,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(6201))
+            salt: bytes32(uint256(6201)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 fee = FACTORY.LAUNCH_FEE();

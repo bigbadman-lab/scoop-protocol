@@ -27,6 +27,8 @@ import {ScoopCreatorRewards} from "./ScoopCreatorRewards.sol";
 import {ScoopQuoteRegistry} from "./ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "./ScoopPriceOracle.sol";
 import {ScoopLaunchMath} from "./libraries/ScoopLaunchMath.sol";
+import {ScoopFeeMath} from "./libraries/ScoopFeeMath.sol";
+import {ScoopFeeTypes} from "./libraries/ScoopFeeTypes.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -44,8 +46,12 @@ interface IUniversalRouter {
  *      Presentation metadata (`LaunchMetadata`) is validated and emitted via `ScoopTokenCreated` for
  *      terminal/indexer discovery. It is NOT stored in Factory state and does not affect economics.
  *
- *      Deployer attribution is always `msg.sender` (4% fee leg). Creator attribution is the
- *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration.
+ *      Deployer attribution is always `msg.sender` (4% of base fee leg). Creator attribution is the
+ *      pre-derived `creatorId` permanently bound via ScoopCreatorRewards source registration when
+ *      any creator-bound fee leg exists.
+ *
+ *      Trading fee: fixed 1% base (`BASE_FEE`) plus optional additional fee (0–2%, 0.1% steps).
+ *      PoolKey.fee = BASE_FEE + additionalFee. Destinations are immutable at launch.
  *
  *      Fixed `LAUNCH_FEE` (0.0005 ETH) is paid to immutable `launchFeeRecipient` on every
  *      successful `launch` / `launchAndBuy`, independent of quote asset, LP, and trading fees.
@@ -54,14 +60,18 @@ contract ScoopFactory is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
 
-    uint24 public constant LP_FEE = 10_000;
+    /// @notice Canonical Uniswap v4 base LP fee (1.0%). Alias kept for downstream readers.
+    uint24 public constant BASE_FEE = ScoopFeeMath.BASE_FEE;
+    uint24 public constant LP_FEE = ScoopFeeMath.BASE_FEE;
+    uint24 public constant ADDITIONAL_FEE_STEP = ScoopFeeMath.ADDITIONAL_FEE_STEP;
+    uint24 public constant MAX_ADDITIONAL_FEE = ScoopFeeMath.MAX_ADDITIONAL_FEE;
     int24 public constant TICK_SPACING = 10;
     /// @dev Fixed one-time protocol launch fee (ETH), separate from LP / initial-buy / trading fees.
     uint256 public constant LAUNCH_FEE = 0.0005 ether;
-    uint16 public constant CREATOR_REWARDS_BPS = 7000;
-    uint16 public constant DEPLOYER_BPS = 400;
-    uint16 public constant BUYBACK_BPS = 2000;
-    uint16 public constant OPERATIONS_BPS = 600;
+    uint16 public constant CREATOR_REWARDS_BPS = ScoopFeeMath.CREATOR_REWARDS_BPS;
+    uint16 public constant DEPLOYER_BPS = ScoopFeeMath.DEPLOYER_BPS;
+    uint16 public constant BUYBACK_BPS = ScoopFeeMath.BUYBACK_BPS;
+    uint16 public constant OPERATIONS_BPS = ScoopFeeMath.OPERATIONS_BPS;
 
     bytes32 public constant TOKEN_DOMAIN = keccak256("SCOOP_TOKEN");
     bytes32 public constant LAUNCH_DOMAIN = keccak256("SCOOP_LAUNCH");
@@ -130,6 +140,9 @@ contract ScoopFactory is ReentrancyGuard {
         address quoteAsset;
         LaunchMetadata metadata;
         bytes32 salt;
+        uint24 additionalFee;
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination;
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination;
     }
 
     struct Launch {
@@ -139,6 +152,11 @@ contract ScoopFactory is ReentrancyGuard {
         address quoteAsset;
         address feeDistributor;
         address liquidityLocker;
+        address holderRewards;
+        uint24 additionalFee;
+        uint24 totalPoolFee;
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination;
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination;
         PoolId poolId;
         uint256 lpTokenId;
         uint160 openingSqrtPriceX96;
@@ -152,6 +170,11 @@ contract ScoopFactory is ReentrancyGuard {
         address token;
         address feeDistributor;
         address liquidityLocker;
+        address holderRewards;
+        uint24 additionalFee;
+        uint24 totalPoolFee;
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination;
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination;
         uint256 lpTokenId;
         PoolId poolId;
         address quoteAsset;
@@ -170,6 +193,11 @@ contract ScoopFactory is ReentrancyGuard {
         address quoteAsset,
         address feeDistributor,
         address liquidityLocker,
+        address holderRewards,
+        uint24 additionalFee,
+        uint24 totalPoolFee,
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination,
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination,
         PoolId poolId,
         uint256 lpTokenId,
         uint160 openingSqrtPriceX96,
@@ -178,6 +206,21 @@ contract ScoopFactory is ReentrancyGuard {
         int24 tickUpper,
         string name,
         string symbol
+    );
+
+    /// @notice Explicit launch economics for indexers (mirrors immutable distributor config).
+    event LaunchEconomicsConfigured(
+        address indexed token,
+        uint24 baseFee,
+        uint24 additionalFee,
+        uint24 totalPoolFee,
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination,
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination,
+        address feeDistributor,
+        address liquidityLocker,
+        address holderRewards,
+        address deployer,
+        bytes32 creatorId
     );
 
     /// @notice Terminal/indexer discovery: associates deployed ScoopToken with core presentation metadata.
@@ -305,13 +348,23 @@ contract ScoopFactory is ReentrancyGuard {
 
     function _launch(LaunchParams calldata params) internal returns (LaunchResult memory result) {
         if (params.creatorId == bytes32(0)) revert ZeroCreatorId();
+        ScoopFeeMath.validateAdditionalFee(params.additionalFee);
+        ScoopFeeMath.validateCreatorAllocationDestination(params.creatorAllocationDestination);
+        ScoopFeeMath.validateAdditionalFeeDestination(params.additionalFeeDestination);
         _validateMetadata(params.metadata);
         _requireApprovedQuote(params.quoteAsset);
 
-        (result.token, result.feeDistributor, result.liquidityLocker) = _deployLaunchContracts(params);
+        (result.token, result.feeDistributor, result.liquidityLocker, result.holderRewards) =
+            _deployLaunchContracts(params);
         result.quoteAsset = params.quoteAsset;
+        result.additionalFee = params.additionalFee;
+        result.totalPoolFee = ScoopFeeMath.totalPoolFee(params.additionalFee);
+        result.creatorAllocationDestination = params.creatorAllocationDestination;
+        result.additionalFeeDestination = params.additionalFeeDestination;
 
-        creatorRewards.registerSource(result.feeDistributor, params.creatorId);
+        if (ScoopFeeMath.usesCreatorPath(params.creatorAllocationDestination, params.additionalFeeDestination)) {
+            creatorRewards.registerSource(result.feeDistributor, params.creatorId);
+        }
 
         uint8 quoteDecimals = _quoteDecimals(params.quoteAsset);
         uint256 quotePriceUsd = priceOracle.getPriceUsd(params.quoteAsset);
@@ -390,7 +443,7 @@ contract ScoopFactory is ReentrancyGuard {
 
     function _deployLaunchContracts(LaunchParams calldata params)
         internal
-        returns (address token, address feeDistributor, address liquidityLocker)
+        returns (address token, address feeDistributor, address liquidityLocker, address holderRewards)
     {
         bytes32 launchSalt = keccak256(abi.encode(msg.sender, params.salt));
         bytes32 tokenSalt = keccak256(abi.encode(launchSalt, TOKEN_DOMAIN));
@@ -418,17 +471,17 @@ contract ScoopFactory is ReentrancyGuard {
             tokenSalt
         );
 
-        (feeDistributor, liquidityLocker) = launchDeployer.deployLaunch(
-            address(creatorRewards),
-            msg.sender,
-            buybackVault,
-            operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS,
-            launchDomainSalt
-        );
+        ScoopLaunchDeployer.LaunchFeeConfig memory feeConfig = ScoopLaunchDeployer.LaunchFeeConfig({
+            creatorRewards: address(creatorRewards),
+            deployer: msg.sender,
+            buybackVault: buybackVault,
+            operations: operations,
+            additionalFee: params.additionalFee,
+            creatorAllocationDestination: params.creatorAllocationDestination,
+            additionalFeeDestination: params.additionalFeeDestination
+        });
+
+        (feeDistributor, liquidityLocker, holderRewards) = launchDeployer.deployLaunch(feeConfig, launchDomainSalt);
     }
 
     function _initPoolAndLockLiquidity(LaunchResult memory result, ScoopLaunchMath.LaunchPricing memory pricing)
@@ -441,7 +494,7 @@ contract ScoopFactory is ReentrancyGuard {
             quoteBalBefore = IERC20(result.quoteAsset).balanceOf(address(this));
         }
 
-        PoolKey memory key = _poolKey(result.token, result.quoteAsset);
+        PoolKey memory key = _poolKey(result.token, result.quoteAsset, result.totalPoolFee);
         poolManager.initialize(key, pricing.sqrtPriceX96);
         lpTokenId = _mintOneSidedLiquidity(key, result.token, result.liquidityLocker, pricing);
         poolId = key.toId();
@@ -482,6 +535,11 @@ contract ScoopFactory is ReentrancyGuard {
             quoteAsset: result.quoteAsset,
             feeDistributor: result.feeDistributor,
             liquidityLocker: result.liquidityLocker,
+            holderRewards: result.holderRewards,
+            additionalFee: result.additionalFee,
+            totalPoolFee: result.totalPoolFee,
+            creatorAllocationDestination: result.creatorAllocationDestination,
+            additionalFeeDestination: result.additionalFeeDestination,
             poolId: result.poolId,
             lpTokenId: result.lpTokenId,
             openingSqrtPriceX96: result.openingSqrtPriceX96,
@@ -491,9 +549,22 @@ contract ScoopFactory is ReentrancyGuard {
             createdAt: uint64(block.timestamp)
         });
 
-        // Discovery event first, then protocol TokenLaunched. Same token address is the join key.
+        // Discovery event first, then economics, then protocol TokenLaunched.
         emit ScoopTokenCreated(
             result.token, params.metadata.description, params.metadata.website, params.metadata.imageUri
+        );
+        emit LaunchEconomicsConfigured(
+            result.token,
+            BASE_FEE,
+            result.additionalFee,
+            result.totalPoolFee,
+            result.creatorAllocationDestination,
+            result.additionalFeeDestination,
+            result.feeDistributor,
+            result.liquidityLocker,
+            result.holderRewards,
+            msg.sender,
+            params.creatorId
         );
         _emitTokenLaunched(params.creatorId, params.name, params.symbol, result);
     }
@@ -511,6 +582,11 @@ contract ScoopFactory is ReentrancyGuard {
             result.quoteAsset,
             result.feeDistributor,
             result.liquidityLocker,
+            result.holderRewards,
+            result.additionalFee,
+            result.totalPoolFee,
+            result.creatorAllocationDestination,
+            result.additionalFeeDestination,
             result.poolId,
             result.lpTokenId,
             result.openingSqrtPriceX96,
@@ -535,7 +611,7 @@ contract ScoopFactory is ReentrancyGuard {
             quoteBaseline = IERC20(quoteAsset).balanceOf(address(this)) - quoteAmountIn;
         }
 
-        PoolKey memory key = _poolKey(token, quoteAsset);
+        PoolKey memory key = _poolKey(token, quoteAsset, launches[token].totalPoolFee);
         // Economic action is always quote → launched token.
         bool zeroForOne = Currency.unwrap(key.currency0) == quoteAsset;
 
@@ -617,7 +693,7 @@ contract ScoopFactory is ReentrancyGuard {
     }
 
     /// @dev Sort quote + launched token into Uniswap v4 PoolKey currency order.
-    function _poolKey(address token, address quoteAsset) internal pure returns (PoolKey memory key) {
+    function _poolKey(address token, address quoteAsset, uint24 poolFee) internal pure returns (PoolKey memory key) {
         Currency quote = Currency.wrap(quoteAsset);
         Currency scoop = Currency.wrap(token);
         Currency currency0;
@@ -633,7 +709,7 @@ contract ScoopFactory is ReentrancyGuard {
         key = PoolKey({
             currency0: currency0,
             currency1: currency1,
-            fee: LP_FEE,
+            fee: poolFee,
             tickSpacing: TICK_SPACING,
             hooks: IHooks(address(0))
         });

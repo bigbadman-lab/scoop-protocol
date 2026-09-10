@@ -26,6 +26,7 @@ import {ScoopFactoryDeployer} from "../src/ScoopFactoryDeployer.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Robinhood fork: ScoopFactory launch presentation metadata / terminal discovery (4K).
@@ -69,6 +70,11 @@ contract ScoopFactoryMetadataForkTest is Test {
         address quoteAsset,
         address feeDistributor,
         address liquidityLocker,
+        address holderRewards,
+        uint24 additionalFee,
+        uint24 totalPoolFee,
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination,
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination,
         PoolId poolId,
         uint256 lpTokenId,
         uint160 openingSqrtPriceX96,
@@ -443,7 +449,15 @@ contract ScoopFactoryMetadataForkTest is Test {
         ScoopFactory.LaunchMetadata memory md = ScoopLaunchMetadataHelpers.realisticMetadata();
         bytes32 salt = _findAaplSalt("ABuy", "AB", true, md);
         ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
-            name: "ABuy", symbol: "AB", creatorId: walletCreatorId, quoteAsset: AAPL_TOKEN, metadata: md, salt: salt
+            name: "ABuy",
+            symbol: "AB",
+            creatorId: walletCreatorId,
+            quoteAsset: AAPL_TOKEN,
+            metadata: md,
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         uint256 aaplIn = 0.1e18;
         deal(AAPL_TOKEN, deployer, aaplIn);
@@ -545,7 +559,15 @@ contract ScoopFactoryMetadataForkTest is Test {
         returns (ScoopFactory.LaunchParams memory)
     {
         return ScoopFactory.LaunchParams({
-            name: name, symbol: symbol, creatorId: walletCreatorId, quoteAsset: address(0), metadata: md, salt: salt
+            name: name,
+            symbol: symbol,
+            creatorId: walletCreatorId,
+            quoteAsset: address(0),
+            metadata: md,
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 
@@ -636,7 +658,7 @@ contract ScoopFactoryMetadataForkTest is Test {
 
     function _decodeTokenLaunchedToken(Vm.Log[] memory logs) internal pure returns (address token) {
         bytes32 topic0 = keccak256(
-            "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+            "TokenLaunched(address,address,bytes32,address,address,address,address,uint24,uint24,uint8,uint8,bytes32,uint256,uint160,int24,int24,int24,string,string)"
         );
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].topics.length >= 4 && logs[i].topics[0] == topic0) {

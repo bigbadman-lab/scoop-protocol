@@ -20,6 +20,8 @@ import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+import {ScoopFeeConfigFactoryGuard} from "../helpers/ScoopFeeConfigFactoryGuard.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -156,6 +158,7 @@ contract ScoopEthToUsdGRouteForkTest is Test {
     }
 
     function _launchTestUsdGWithCreatorBuy() internal {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         uint256 quoteIn = 25e6;
         deal(USDG, creator, quoteIn);
         ScoopFactory.LaunchParams memory params = _params("RouteTest", "RTEST", bytes32(uint256(802)));
@@ -184,7 +187,10 @@ contract ScoopEthToUsdGRouteForkTest is Test {
             creatorId: CREATOR_REGISTRY.walletCreatorId(creator),
             quoteAsset: USDG,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 

@@ -3,9 +3,22 @@ pragma solidity ^0.8.26;
 
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopToken} from "../../src/ScoopToken.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
 
 /// @dev Shared default presentation metadata for Factory fork/unit tests.
 library ScoopLaunchMetadataHelpers {
+    function defaultFeeFields()
+        internal
+        pure
+        returns (
+            uint24 additionalFee,
+            ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination,
+            ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination
+        )
+    {
+        return (0, ScoopFeeTypes.CreatorAllocationDestination.Creator, ScoopFeeTypes.AdditionalFeeDestination.Creator);
+    }
+
     function defaultMetadata() internal pure returns (ScoopFactory.LaunchMetadata memory) {
         return ScoopFactory.LaunchMetadata({
             description: "SCOOP test token",

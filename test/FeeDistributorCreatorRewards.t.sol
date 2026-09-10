@@ -7,6 +7,7 @@ import {ScoopCreatorRegistry} from "../src/ScoopCreatorRegistry.sol";
 import {ScoopCreatorRewards} from "../src/ScoopCreatorRewards.sol";
 import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopTestToken} from "../src/ScoopTestToken.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 /// @dev Test-only recipient that rejects native ETH.
 contract RejectETHDest {
@@ -61,10 +62,10 @@ contract FeeDistributorCreatorRewardsTest is Test {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
 
         walletCreatorId = registry.walletCreatorId(walletCreator);
@@ -268,10 +269,10 @@ contract FeeDistributorCreatorRewardsTest is Test {
             address(rejector),
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
 
         vm.prank(registrar);

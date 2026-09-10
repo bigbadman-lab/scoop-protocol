@@ -14,6 +14,7 @@ import {ScoopLaunchDeployer} from "../src/ScoopLaunchDeployer.sol";
 import {ScoopCreatorRegistry} from "../src/ScoopCreatorRegistry.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @title ScoopHelloCanaryLaunch
@@ -97,7 +98,10 @@ library ScoopHelloCanaryLaunch {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: metadata(),
-            salt: PRODUCTION_SALT
+            salt: PRODUCTION_SALT,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 
@@ -215,15 +219,16 @@ library ScoopHelloCanaryLaunch {
         );
 
         ScoopLaunchDeployer launchDeployer = factory.launchDeployer();
-        (p.feeDistributor, p.liquidityLocker) = launchDeployer.predictLaunch(
-            address(factory.creatorRewards()),
-            helloCreator,
-            factory.buybackVault(),
-            factory.operations(),
-            factory.CREATOR_REWARDS_BPS(),
-            factory.DEPLOYER_BPS(),
-            factory.BUYBACK_BPS(),
-            factory.OPERATIONS_BPS(),
+        (p.feeDistributor, p.liquidityLocker,) = launchDeployer.predictLaunch(
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: address(factory.creatorRewards()),
+                deployer: helloCreator,
+                buybackVault: factory.buybackVault(),
+                operations: factory.operations(),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             p.launchDomainSalt
         );
     }

@@ -10,6 +10,7 @@ import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopTestToken} from "../../src/ScoopTestToken.sol";
 import {MockAggregatorV3} from "../mocks/MockAggregatorV3.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Shared local harness for Milestone 5B security unit tests (no Uniswap).
@@ -71,10 +72,10 @@ abstract contract ScoopSecurityLocalBase is Test {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
 
         quoteRegistry = new ScoopQuoteRegistry(registryAuthority);

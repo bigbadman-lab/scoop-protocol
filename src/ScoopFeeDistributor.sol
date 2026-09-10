@@ -6,68 +6,80 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IScoopCreatorRewards} from "./interfaces/IScoopCreatorRewards.sol";
+import {ScoopFeeMath} from "./libraries/ScoopFeeMath.sol";
+import {ScoopFeeTypes} from "./libraries/ScoopFeeTypes.sol";
 
 /**
  * @title ScoopFeeDistributor
- * @notice Immutable per-launch fee distribution primitive for SCOOP Protocol V1.
+ * @notice Immutable per-launch fee distribution for SCOOP Protocol.
  * @dev Receives native ETH and/or ERC-20 assets (typically collected Uniswap v4 LP fees)
- *      and splits the current balance across four immutable destinations according to
- *      immutable basis-point weights that must sum to exactly 10_000 at deployment:
- *      creatorRewards, deployer, buybackVault, and operations.
+ *      and splits the current balance into:
+ *      - basePart  proportional to BASE_FEE / totalPoolFee → 70/4/20/6 economics
+ *      - extraPart proportional to additionalFee / totalPoolFee → 100% one destination
  *
- *      The creator allocation is credited into a ScoopCreatorRewards-compatible contract
- *      via `creditETH` / `creditToken`. Creator identity attribution is external to this
- *      distributor: the rewards contract resolves `sourceCreatorId[address(this)]` permanently.
- *      This distributor never chooses or stores a creatorId.
+ *      Creator allocation (70% of base) routes to CreatorRewards or holderRewards.
+ *      Additional fee routes to Creator, Deployer, or Holders.
  *
- *      Deployer, buybackVault, and operations remain direct transfer destinations.
- *      `buybackVault` receives an allocation but does NOT execute $SCOOP buybacks.
+ *      Creator identity attribution is external: ScoopCreatorRewards resolves
+ *      `sourceCreatorId[address(this)]`. This distributor never stores a creatorId.
  *
  *      Permissionless: anyone may call `distributeETH` / `distributeToken`.
- *      The caller receives no reward.
- *
- *      Rounding: creatorRewards, deployer, and buyback amounts are floored via integer
- *      division; any remainder is assigned to operations so the full balance is allocated.
- *
  *      Configuration is permanent: no owner, no setters, no rescue, no upgrade path.
  */
 contract ScoopFeeDistributor is ReentrancyGuard {
     using SafeERC20 for IERC20;
-
-    uint16 public constant BPS_DENOMINATOR = 10_000;
+    using ScoopFeeMath for uint24;
 
     error ZeroRecipient();
-    error InvalidBpsTotal(uint16 total);
     error ZeroToken();
     error ZeroBalance();
     error NativeTransferFailed(address recipient, uint256 amount);
+    error HolderRewardsRequired();
 
-    /// @notice ScoopCreatorRewards-compatible credit destination for the creator allocation.
     address public immutable creatorRewards;
     address public immutable deployer;
     address public immutable buybackVault;
     address public immutable operations;
+    address public immutable holderRewards;
 
-    uint16 public immutable creatorRewardsBps;
-    uint16 public immutable deployerBps;
-    uint16 public immutable buybackBps;
-    uint16 public immutable operationsBps;
+    uint24 public immutable baseFee;
+    uint24 public immutable additionalFee;
+    uint24 public immutable totalPoolFee;
+    ScoopFeeTypes.CreatorAllocationDestination public immutable creatorAllocationDestination;
+    ScoopFeeTypes.AdditionalFeeDestination public immutable additionalFeeDestination;
+
+    uint16 public constant CREATOR_REWARDS_BPS = ScoopFeeMath.CREATOR_REWARDS_BPS;
+    uint16 public constant DEPLOYER_BPS = ScoopFeeMath.DEPLOYER_BPS;
+    uint16 public constant BUYBACK_BPS = ScoopFeeMath.BUYBACK_BPS;
+    uint16 public constant OPERATIONS_BPS = ScoopFeeMath.OPERATIONS_BPS;
 
     event ETHDistributed(
         uint256 totalAmount,
-        uint256 creatorRewardsAmount,
-        uint256 deployerAmount,
-        uint256 buybackAmount,
-        uint256 operationsAmount
+        uint256 basePart,
+        uint256 extraPart,
+        uint256 baseCreatorAmount,
+        uint256 baseHoldersAmount,
+        uint256 baseDeployerAmount,
+        uint256 baseBuybackAmount,
+        uint256 baseOperationsAmount,
+        uint256 extraCreatorAmount,
+        uint256 extraDeployerAmount,
+        uint256 extraHoldersAmount
     );
 
     event TokenDistributed(
         address indexed token,
         uint256 totalAmount,
-        uint256 creatorRewardsAmount,
-        uint256 deployerAmount,
-        uint256 buybackAmount,
-        uint256 operationsAmount
+        uint256 basePart,
+        uint256 extraPart,
+        uint256 baseCreatorAmount,
+        uint256 baseHoldersAmount,
+        uint256 baseDeployerAmount,
+        uint256 baseBuybackAmount,
+        uint256 baseOperationsAmount,
+        uint256 extraCreatorAmount,
+        uint256 extraDeployerAmount,
+        uint256 extraHoldersAmount
     );
 
     constructor(
@@ -75,10 +87,10 @@ contract ScoopFeeDistributor is ReentrancyGuard {
         address deployer_,
         address buybackVault_,
         address operations_,
-        uint16 creatorRewardsBps_,
-        uint16 deployerBps_,
-        uint16 buybackBps_,
-        uint16 operationsBps_
+        address holderRewards_,
+        uint24 additionalFee_,
+        ScoopFeeTypes.CreatorAllocationDestination creatorAllocationDestination_,
+        ScoopFeeTypes.AdditionalFeeDestination additionalFeeDestination_
     ) {
         if (
             creatorRewards_ == address(0) || deployer_ == address(0) || buybackVault_ == address(0)
@@ -87,75 +99,111 @@ contract ScoopFeeDistributor is ReentrancyGuard {
             revert ZeroRecipient();
         }
 
-        uint16 totalBps = creatorRewardsBps_ + deployerBps_ + buybackBps_ + operationsBps_;
-        if (totalBps != BPS_DENOMINATOR) revert InvalidBpsTotal(totalBps);
+        ScoopFeeMath.validateAdditionalFee(additionalFee_);
+        ScoopFeeMath.validateCreatorAllocationDestination(creatorAllocationDestination_);
+        ScoopFeeMath.validateAdditionalFeeDestination(additionalFeeDestination_);
+
+        if (
+            ScoopFeeMath.usesHoldersPath(creatorAllocationDestination_, additionalFeeDestination_)
+                && holderRewards_ == address(0)
+        ) {
+            revert HolderRewardsRequired();
+        }
 
         creatorRewards = creatorRewards_;
         deployer = deployer_;
         buybackVault = buybackVault_;
         operations = operations_;
-        creatorRewardsBps = creatorRewardsBps_;
-        deployerBps = deployerBps_;
-        buybackBps = buybackBps_;
-        operationsBps = operationsBps_;
+        holderRewards = holderRewards_;
+        baseFee = ScoopFeeMath.BASE_FEE;
+        additionalFee = additionalFee_;
+        totalPoolFee = ScoopFeeMath.totalPoolFee(additionalFee_);
+        creatorAllocationDestination = creatorAllocationDestination_;
+        additionalFeeDestination = additionalFeeDestination_;
     }
 
-    /// @notice Accept native ETH deposits (e.g. forwarded LP fee collections).
     receive() external payable {}
 
-    /// @notice Permissionlessly distribute the distributor's entire ETH balance.
     function distributeETH() external nonReentrant {
         uint256 balance = address(this).balance;
         if (balance == 0) revert ZeroBalance();
 
-        (uint256 creatorRewardsAmount, uint256 deployerAmount, uint256 buybackAmount, uint256 operationsAmount) =
-            _split(balance);
+        ScoopFeeMath.SplitResult memory s =
+            ScoopFeeMath.split(balance, additionalFee, creatorAllocationDestination, additionalFeeDestination);
 
-        // Creator first via credit API; remaining legs are direct transfers. Any failure reverts all.
-        if (creatorRewardsAmount > 0) {
-            IScoopCreatorRewards(creatorRewards).creditETH{value: creatorRewardsAmount}();
+        uint256 creatorTotal = s.baseCreatorAmount + s.extraCreatorAmount;
+        if (creatorTotal > 0) {
+            IScoopCreatorRewards(creatorRewards).creditETH{value: creatorTotal}();
         }
-        _sendETH(deployer, deployerAmount);
-        _sendETH(buybackVault, buybackAmount);
-        _sendETH(operations, operationsAmount);
 
-        emit ETHDistributed(balance, creatorRewardsAmount, deployerAmount, buybackAmount, operationsAmount);
+        uint256 holdersTotal = s.baseHoldersAmount + s.extraHoldersAmount;
+        _sendETH(holderRewards, holdersTotal);
+
+        _sendETH(deployer, s.baseDeployerAmount + s.extraDeployerAmount);
+        _sendETH(buybackVault, s.baseBuybackAmount);
+        _sendETH(operations, s.baseOperationsAmount);
+
+        emit ETHDistributed(
+            balance,
+            s.basePart,
+            s.extraPart,
+            s.baseCreatorAmount,
+            s.baseHoldersAmount,
+            s.baseDeployerAmount,
+            s.baseBuybackAmount,
+            s.baseOperationsAmount,
+            s.extraCreatorAmount,
+            s.extraDeployerAmount,
+            s.extraHoldersAmount
+        );
     }
 
-    /// @notice Permissionlessly distribute the distributor's entire balance of `token`.
     function distributeToken(address token) external nonReentrant {
         if (token == address(0)) revert ZeroToken();
 
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance == 0) revert ZeroBalance();
 
-        (uint256 creatorRewardsAmount, uint256 deployerAmount, uint256 buybackAmount, uint256 operationsAmount) =
-            _split(balance);
+        ScoopFeeMath.SplitResult memory s =
+            ScoopFeeMath.split(balance, additionalFee, creatorAllocationDestination, additionalFeeDestination);
 
-        if (creatorRewardsAmount > 0) {
-            // Exact allowance for this credit only; reset afterward for non-standard ERC-20s.
-            IERC20(token).forceApprove(creatorRewards, creatorRewardsAmount);
-            IScoopCreatorRewards(creatorRewards).creditToken(token, creatorRewardsAmount);
+        uint256 creatorTotal = s.baseCreatorAmount + s.extraCreatorAmount;
+        if (creatorTotal > 0) {
+            IERC20(token).forceApprove(creatorRewards, creatorTotal);
+            IScoopCreatorRewards(creatorRewards).creditToken(token, creatorTotal);
             IERC20(token).forceApprove(creatorRewards, 0);
         }
 
-        IERC20(token).safeTransfer(deployer, deployerAmount);
-        IERC20(token).safeTransfer(buybackVault, buybackAmount);
-        IERC20(token).safeTransfer(operations, operationsAmount);
+        uint256 holdersTotal = s.baseHoldersAmount + s.extraHoldersAmount;
+        if (holdersTotal > 0) {
+            IERC20(token).safeTransfer(holderRewards, holdersTotal);
+        }
 
-        emit TokenDistributed(token, balance, creatorRewardsAmount, deployerAmount, buybackAmount, operationsAmount);
-    }
+        uint256 deployerTotal = s.baseDeployerAmount + s.extraDeployerAmount;
+        if (deployerTotal > 0) {
+            IERC20(token).safeTransfer(deployer, deployerTotal);
+        }
+        if (s.baseBuybackAmount > 0) {
+            IERC20(token).safeTransfer(buybackVault, s.baseBuybackAmount);
+        }
+        if (s.baseOperationsAmount > 0) {
+            IERC20(token).safeTransfer(operations, s.baseOperationsAmount);
+        }
 
-    /// @dev Floor creatorRewards/deployer/buyback; remainder goes to operations.
-    function _split(uint256 balance)
-        internal
-        view
-        returns (uint256 creatorRewardsAmount, uint256 deployerAmount, uint256 buybackAmount, uint256 operationsAmount)
-    {
-        creatorRewardsAmount = (balance * creatorRewardsBps) / BPS_DENOMINATOR;
-        deployerAmount = (balance * deployerBps) / BPS_DENOMINATOR;
-        buybackAmount = (balance * buybackBps) / BPS_DENOMINATOR;
-        operationsAmount = balance - creatorRewardsAmount - deployerAmount - buybackAmount;
+        emit TokenDistributed(
+            token,
+            balance,
+            s.basePart,
+            s.extraPart,
+            s.baseCreatorAmount,
+            s.baseHoldersAmount,
+            s.baseDeployerAmount,
+            s.baseBuybackAmount,
+            s.baseOperationsAmount,
+            s.extraCreatorAmount,
+            s.extraDeployerAmount,
+            s.extraHoldersAmount
+        );
     }
 
     function _sendETH(address recipient, uint256 amount) internal {

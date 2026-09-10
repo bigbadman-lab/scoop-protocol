@@ -24,6 +24,7 @@ import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopCreatorRegistry} from "../src/ScoopCreatorRegistry.sol";
 import {ScoopCreatorRewards} from "../src/ScoopCreatorRewards.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 interface IHasPermit2 {
     function permit2() external view returns (IAllowanceTransfer);
@@ -112,10 +113,10 @@ contract CreatorRewardsFlowForkTest is Test {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         locker = new ScoopLiquidityLocker(POSITION_MANAGER_ADDR, address(distributor));
 
@@ -234,10 +235,10 @@ contract CreatorRewardsFlowForkTest is Test {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         vm.prank(registrar);
         rewards.registerSource(address(xDistributor), xId);

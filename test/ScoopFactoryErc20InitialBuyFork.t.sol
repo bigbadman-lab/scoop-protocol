@@ -31,6 +31,7 @@ import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
 import {MockAggregatorV3} from "./mocks/MockAggregatorV3.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Robinhood fork: generalized ERC-20 `launchAndBuy` (AAPL) with both pool orientations.
@@ -278,7 +279,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
@@ -303,7 +307,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
@@ -327,7 +334,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 aaplBefore = IERC20(AAPL_TOKEN).balanceOf(deployer);
@@ -345,7 +355,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(fake),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9001))
+            salt: bytes32(uint256(9001)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotRegistered.selector, address(fake)));
@@ -368,7 +381,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9002))
+            salt: bytes32(uint256(9002)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         vm.expectRevert(abi.encodeWithSelector(ScoopFactory.QuoteNotEnabled.selector, AAPL_TOKEN));
@@ -387,7 +403,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: stock2,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9003))
+            salt: bytes32(uint256(9003)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         // No pull possible without balance — but policy/oracle fails inside launch before pull
         vm.prank(deployer);
@@ -411,7 +430,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9004))
+            salt: bytes32(uint256(9004)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         vm.expectRevert();
@@ -430,7 +452,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         vm.expectRevert(
@@ -469,7 +494,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
                 creatorId: registry.walletCreatorId(walletCreator),
                 quoteAsset: AAPL_TOKEN,
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: salt
+                salt: salt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             });
 
             vm.prank(deployer);
@@ -503,7 +531,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -580,7 +611,10 @@ contract ScoopFactoryErc20InitialBuyForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         return factory.launchAndBuy{value: 0.0005 ether}(params, aaplIn, minOut);

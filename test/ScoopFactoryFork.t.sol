@@ -31,6 +31,8 @@ import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
+import {ScoopFeeMath} from "../src/libraries/ScoopFeeMath.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -133,7 +135,10 @@ contract ScoopFactoryForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(1))
+            salt: bytes32(uint256(1)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 gasBefore = gasleft();
@@ -158,6 +163,11 @@ contract ScoopFactoryForkTest is Test {
         assertEq(rec.creatorId, creatorId);
         assertEq(rec.feeDistributor, feeDistributor);
         assertEq(rec.liquidityLocker, liquidityLocker);
+        assertTrue(rec.holderRewards != address(0));
+        assertEq(rec.additionalFee, 0);
+        assertEq(rec.totalPoolFee, 10_000);
+        assertEq(uint8(rec.creatorAllocationDestination), 0);
+        assertEq(uint8(rec.additionalFeeDestination), 0);
         assertEq(PoolId.unwrap(rec.poolId), PoolId.unwrap(poolId));
         assertEq(rec.lpTokenId, lpTokenId);
 
@@ -166,10 +176,13 @@ contract ScoopFactoryForkTest is Test {
         assertEq(distributor.deployer(), deployer);
         assertEq(distributor.buybackVault(), buybackVault);
         assertEq(distributor.operations(), operations);
-        assertEq(distributor.creatorRewardsBps(), 7000);
-        assertEq(distributor.deployerBps(), 400);
-        assertEq(distributor.buybackBps(), 2000);
-        assertEq(distributor.operationsBps(), 600);
+        assertEq(distributor.holderRewards(), rec.holderRewards);
+        assertEq(distributor.CREATOR_REWARDS_BPS(), 7000);
+        assertEq(distributor.DEPLOYER_BPS(), 400);
+        assertEq(distributor.BUYBACK_BPS(), 2000);
+        assertEq(distributor.OPERATIONS_BPS(), 600);
+        assertEq(distributor.additionalFee(), 0);
+        assertEq(distributor.totalPoolFee(), 10_000);
         assertEq(rewards.sourceCreatorId(feeDistributor), creatorId);
 
         assertEq(IERC721(POSITION_MANAGER_ADDR).ownerOf(lpTokenId), liquidityLocker);
@@ -179,6 +192,9 @@ contract ScoopFactoryForkTest is Test {
         (PoolKey memory key,) = IPositionManager(POSITION_MANAGER_ADDR).getPoolAndPositionInfo(lpTokenId);
         assertTrue(key.currency0 == CurrencyLibrary.ADDRESS_ZERO);
         assertEq(Currency.unwrap(key.currency1), token);
+        assertEq(key.fee, 10_000);
+        assertEq(key.tickSpacing, 10);
+        assertEq(address(key.hooks), address(0));
 
         uint256 bought = _buy(token, 0.02 ether);
         assertGt(bought, 0);
@@ -202,7 +218,10 @@ contract ScoopFactoryForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: bytes32(uint256(2))
+                salt: bytes32(uint256(2)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -280,7 +299,10 @@ contract ScoopFactoryForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: bytes32(uint256(3))
+                salt: bytes32(uint256(3)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -326,7 +348,10 @@ contract ScoopFactoryForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: userSalt
+                salt: userSalt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -338,7 +363,10 @@ contract ScoopFactoryForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: userSalt
+                salt: userSalt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -355,7 +383,10 @@ contract ScoopFactoryForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9))
+            salt: bytes32(uint256(9)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -373,7 +404,10 @@ contract ScoopFactoryForkTest is Test {
             creatorId: bytes32(0),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(8))
+            salt: bytes32(uint256(8)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -389,7 +423,10 @@ contract ScoopFactoryForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(11))
+            salt: bytes32(uint256(11)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -397,20 +434,28 @@ contract ScoopFactoryForkTest is Test {
         (address token,,,,) = factory.launch{value: 0.0005 ether}(params);
 
         bytes32 topic0 = keccak256(
-            "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+            "TokenLaunched(address,address,bytes32,address,address,address,address,uint24,uint24,uint8,uint8,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+        );
+        bytes32 econTopic0 = keccak256(
+            "LaunchEconomicsConfigured(address,uint24,uint24,uint24,uint8,uint8,address,address,address,address,bytes32)"
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bool found;
+        bool foundEcon;
         for (uint256 i; i < entries.length; ++i) {
             if (entries[i].topics.length >= 4 && entries[i].topics[0] == topic0) {
                 assertEq(address(uint160(uint256(entries[i].topics[1]))), token);
                 assertEq(address(uint160(uint256(entries[i].topics[2]))), deployer);
                 assertEq(entries[i].topics[3], creatorId);
                 found = true;
-                break;
+            }
+            if (entries[i].topics.length >= 2 && entries[i].topics[0] == econTopic0) {
+                assertEq(address(uint160(uint256(entries[i].topics[1]))), token);
+                foundEcon = true;
             }
         }
         assertTrue(found);
+        assertTrue(foundEcon);
     }
 
     function test_noOwnerAdminSurface() public {
@@ -432,14 +477,86 @@ contract ScoopFactoryForkTest is Test {
     // Helpers
     // ──────────────────────────────────────────────
 
-    function _poolKey(address token) internal pure returns (PoolKey memory) {
+    function _poolKey(address token) internal view returns (PoolKey memory) {
+        ScoopFactory.Launch memory rec = factory.getLaunch(token);
         return PoolKey({
             currency0: CurrencyLibrary.ADDRESS_ZERO,
             currency1: Currency.wrap(token),
-            fee: 10_000,
+            fee: rec.totalPoolFee == 0 ? uint24(10_000) : rec.totalPoolFee,
             tickSpacing: 10,
             hooks: IHooks(address(0))
         });
+    }
+
+    function test_invalidAdditionalFee_revertsBeforeLaunch() public {
+        bytes32 creatorId = registry.walletCreatorId(walletCreator);
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "BadFee",
+            symbol: "BAD",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(901)),
+            additionalFee: 2500,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+        });
+        vm.prank(deployer);
+        vm.expectRevert(abi.encodeWithSelector(ScoopFeeMath.InvalidAdditionalFee.selector, uint24(2500)));
+        factory.launch{value: 0.0005 ether}(params);
+    }
+
+    function test_additionalFee_setsPoolKeyAndDistributor() public {
+        bytes32 creatorId = registry.walletCreatorId(walletCreator);
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "ExtraFee",
+            symbol: "XTRA",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(902)),
+            additionalFee: 10_000,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Holders
+        });
+        vm.prank(deployer);
+        (address token, address feeDistributor,, uint256 lpTokenId,) = factory.launch{value: 0.0005 ether}(params);
+
+        ScoopFactory.Launch memory rec = factory.getLaunch(token);
+        assertEq(rec.additionalFee, 10_000);
+        assertEq(rec.totalPoolFee, 20_000);
+        assertEq(uint8(rec.additionalFeeDestination), uint8(ScoopFeeTypes.AdditionalFeeDestination.Holders));
+
+        (PoolKey memory key,) = IPositionManager(POSITION_MANAGER_ADDR).getPoolAndPositionInfo(lpTokenId);
+        assertEq(key.fee, 20_000);
+
+        ScoopFeeDistributor distributor = ScoopFeeDistributor(payable(feeDistributor));
+        assertEq(distributor.totalPoolFee(), 20_000);
+        assertEq(distributor.additionalFee(), 10_000);
+        assertEq(uint8(distributor.additionalFeeDestination()), uint8(ScoopFeeTypes.AdditionalFeeDestination.Holders));
+        assertEq(rewards.sourceCreatorId(feeDistributor), creatorId);
+
+        uint256 bought = _buy(token, 0.02 ether);
+        assertGt(bought, 0);
+    }
+
+    function test_holdersAllocation_skipsCreatorSourceRegistration() public {
+        bytes32 creatorId = registry.walletCreatorId(walletCreator);
+        ScoopFactory.LaunchParams memory params = ScoopFactory.LaunchParams({
+            name: "HoldersOnly",
+            symbol: "HOLD",
+            creatorId: creatorId,
+            quoteAsset: address(0),
+            metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
+            salt: bytes32(uint256(903)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Holders,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Deployer
+        });
+        vm.prank(deployer);
+        (address token, address feeDistributor,,,) = factory.launch{value: 0.0005 ether}(params);
+        assertEq(rewards.sourceCreatorId(feeDistributor), bytes32(0));
+        assertTrue(factory.isScoopToken(token));
     }
 
     function _generateFees(address token) internal {

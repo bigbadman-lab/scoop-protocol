@@ -30,6 +30,7 @@ import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -135,7 +136,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(1))
+            salt: bytes32(uint256(1)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 ethIn = 0.01 ether;
@@ -181,7 +185,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(2))
+            salt: bytes32(uint256(2)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -207,7 +214,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 ethBefore = deployer.balance;
@@ -234,7 +244,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(4))
+            salt: bytes32(uint256(4)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -250,7 +263,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(40))
+            salt: bytes32(uint256(40)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -277,7 +293,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: bytes32(uint256(200 + i))
+                salt: bytes32(uint256(200 + i)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             });
             uint256 ethBefore = deployer.balance;
             vm.prank(deployer);
@@ -313,7 +332,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(5))
+            salt: bytes32(uint256(5)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 gasBefore = gasleft();
@@ -356,7 +378,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(6))
+            salt: bytes32(uint256(6)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -376,7 +401,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(7))
+            salt: bytes32(uint256(7)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -419,7 +447,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(8))
+            salt: bytes32(uint256(8)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -463,7 +494,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(9))
+            salt: bytes32(uint256(9)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -483,7 +517,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(15))
+            salt: bytes32(uint256(15)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -502,7 +539,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(16))
+            salt: bytes32(uint256(16)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         vm.prank(deployer);
@@ -550,7 +590,10 @@ contract ScoopFactoryInitialBuyForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         (,,,,, tokensBought) = factory.launchAndBuy{value: 0.0005 ether + (ethIn)}(params, ethIn, 1);

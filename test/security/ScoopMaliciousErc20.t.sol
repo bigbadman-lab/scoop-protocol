@@ -7,6 +7,8 @@ import {ScoopSecurityLocalBase} from "./ScoopSecurityLocalBase.sol";
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopFeeDistributor} from "../../src/ScoopFeeDistributor.sol";
 import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+
 import {
     FeeOnTransferERC20,
     FalseReturnERC20,
@@ -91,10 +93,10 @@ contract ScoopMaliciousErc20Test is ScoopSecurityLocalBase {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(dist), walletCreatorId);
 
@@ -122,10 +124,10 @@ contract ScoopMaliciousErc20Test is ScoopSecurityLocalBase {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(dist), walletCreatorId);
 

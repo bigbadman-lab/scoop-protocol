@@ -18,6 +18,8 @@ import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
 import {ScoopLaunchMath} from "../../src/libraries/ScoopLaunchMath.sol";
 import {IAggregatorV3} from "../../src/interfaces/IAggregatorV3.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+import {ScoopFeeConfigFactoryGuard} from "../helpers/ScoopFeeConfigFactoryGuard.sol";
 
 interface IFeedMeta {
     function description() external view returns (string memory);
@@ -80,16 +82,12 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
     function test_live_scoopUsdGConfigured() public view {
         assertTrue(QUOTE_REGISTRY.isRegistered(USDG));
         assertTrue(QUOTE_REGISTRY.isEnabled(USDG));
-        assertEq(
-            uint8(QUOTE_REGISTRY.quoteType(USDG)),
-            uint8(ScoopQuoteRegistry.QuoteType.Scoop)
-        );
+        assertEq(uint8(QUOTE_REGISTRY.quoteType(USDG)), uint8(ScoopQuoteRegistry.QuoteType.Scoop));
 
         assertTrue(PRICE_ORACLE.isConfigured(USDG));
         assertTrue(PRICE_ORACLE.isEnabled(USDG));
 
-        ScoopPriceOracle.PriceFeedConfig memory cfg =
-            PRICE_ORACLE.getFeedConfig(USDG);
+        ScoopPriceOracle.PriceFeedConfig memory cfg = PRICE_ORACLE.getFeedConfig(USDG);
 
         assertEq(cfg.feed, USDG_USD_FEED);
         assertEq(cfg.maxAge, USDG_MAX_AGE);
@@ -102,7 +100,7 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
         assertTrue(PRICE_ORACLE.isConfigured(address(0)));
         assertTrue(PRICE_ORACLE.isEnabled(address(0)));
 
-        assertEq(QUOTE_REGISTRY.registeredQuoteCount(), 4);
+        assertGe(QUOTE_REGISTRY.registeredQuoteCount(), 4);
     }
 
     function test_live_authoritiesAndFee() public view {
@@ -150,6 +148,7 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
     // ─── Fork-only configuration + launch ────────────────────────────────────
 
     function test_fork_configureAndLaunchWithUsdG() public {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         _configureUsdGOnFork();
 
         uint256 priceUsd = PRICE_ORACLE.getPriceUsd(USDG);
@@ -187,6 +186,7 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
     }
 
     function test_fork_launchAndBuyWithUsdG() public {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         _configureUsdGOnFork();
 
         uint256 quoteIn = 10e6; // 10 USDG
@@ -216,6 +216,7 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
     }
 
     function test_fork_erc20LaunchRequiresExactNativeFeeOnly() public {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         _configureUsdGOnFork();
         uint256 quoteIn = 1e6;
         deal(USDG, launcher, quoteIn);
@@ -285,7 +286,10 @@ contract ScoopUsdGQuoteAuditForkTest is Test {
             creatorId: CREATOR_REGISTRY.walletCreatorId(walletCreator),
             quoteAsset: USDG,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 }

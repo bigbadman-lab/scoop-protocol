@@ -11,6 +11,8 @@ import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
 import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+
 import {
     RejectETHRecipient,
     ReenterFactoryOnReceive,
@@ -63,7 +65,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(1))
+            salt: bytes32(uint256(1)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         // Prove recipient rejects ETH in isolation first.
@@ -120,7 +125,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(2))
+            salt: bytes32(uint256(2)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         reenter.configure(factory, params);
         reenter.enableReenter(true);
@@ -145,10 +153,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             address(rejector),
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(hostile), walletCreatorId);
         vm.deal(address(hostile), 1 ether);
@@ -178,10 +186,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             deployerRecipient,
             address(rejector),
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(hostile), walletCreatorId);
         vm.deal(address(hostile), 1 ether);
@@ -202,10 +210,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             deployerRecipient,
             buybackVault,
             address(rejector),
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(hostile), walletCreatorId);
         vm.deal(address(hostile), 1 ether);
@@ -262,10 +270,10 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
             address(reenter),
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         _registerSource(address(hostile), walletCreatorId);
         reenter.configure(hostile);

@@ -28,6 +28,7 @@ import {ScoopFeeDistributor} from "../../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../../src/ScoopLiquidityLocker.sol";
 import {ScoopLaunchDeployer} from "../../src/ScoopLaunchDeployer.sol";
 import {ScoopLiquidityCurveHelpers} from "../helpers/ScoopLiquidityCurveHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -238,14 +239,15 @@ contract ScoopHelloCanaryForkTest is Test {
         // Pre-occupy launch CREATE2 slot with identical constructor args.
         vm.prank(attacker);
         launchDeployer.deployLaunch(
-            address(rewards),
-            deployer,
-            buybackVault,
-            operations,
-            factory.CREATOR_REWARDS_BPS(),
-            factory.DEPLOYER_BPS(),
-            factory.BUYBACK_BPS(),
-            factory.OPERATIONS_BPS(),
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: address(rewards),
+                deployer: deployer,
+                buybackVault: buybackVault,
+                operations: operations,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             launchDomainSalt
         );
 
@@ -298,7 +300,10 @@ contract ScoopHelloCanaryForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
             metadata: _helloMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 
@@ -306,7 +311,7 @@ contract ScoopHelloCanaryForkTest is Test {
         bytes32 feeTopic = keccak256("LaunchFeePaid(address,address,uint256)");
         bytes32 createdTopic = keccak256("ScoopTokenCreated(address,string,string,string)");
         bytes32 launchedTopic = keccak256(
-            "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+            "TokenLaunched(address,address,bytes32,address,address,address,address,uint24,uint24,uint8,uint8,bytes32,uint256,uint160,int24,int24,int24,string,string)"
         );
         bytes32 buyTopic = keccak256("InitialBuyExecuted(address,address,address,uint256,uint256)");
 

@@ -29,6 +29,7 @@ import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Milestone 4K — Factory→ScoopToken metadata wiring, terminal discovery, salt collision.
@@ -132,7 +133,10 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: md,
-                salt: bytes32(uint256(1))
+                salt: bytes32(uint256(1)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -188,7 +192,15 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
         vm.expectRevert(); // launch-component CREATE2 collision (metadata-independent salt)
         factory.launch{value: LAUNCH_FEE}(
             ScoopFactory.LaunchParams({
-                name: "B", symbol: "B", creatorId: creatorId, quoteAsset: address(0), metadata: b, salt: salt
+                name: "B",
+                symbol: "B",
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: b,
+                salt: salt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
     }
@@ -215,7 +227,10 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
                 creatorId: bobId,
                 quoteAsset: address(0),
                 metadata: md,
-                salt: bytes32(uint256(3))
+                salt: bytes32(uint256(3)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
@@ -259,7 +274,10 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
             creatorId: creatorId,
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.realisticMetadata(),
-            salt: bytes32(uint256(5))
+            salt: bytes32(uint256(5)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         uint256 quoteIn = 0.01 ether;
         vm.prank(deployer);
@@ -283,7 +301,10 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         (address token,,,,, uint256 bought) = factory.launchAndBuy{value: LAUNCH_FEE}(params, aaplIn, 1);
@@ -317,7 +338,15 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
         vm.prank(deployer);
         (token,,,,) = factory.launch{value: LAUNCH_FEE}(
             ScoopFactory.LaunchParams({
-                name: name, symbol: symbol, creatorId: creatorId, quoteAsset: address(0), metadata: md, salt: salt
+                name: name,
+                symbol: symbol,
+                creatorId: creatorId,
+                quoteAsset: address(0),
+                metadata: md,
+                salt: salt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
     }

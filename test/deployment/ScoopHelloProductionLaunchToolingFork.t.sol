@@ -15,6 +15,7 @@ import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
 import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
+import {ScoopFeeConfigFactoryGuard} from "../helpers/ScoopFeeConfigFactoryGuard.sol";
 
 /**
  * @notice Milestone 5D HELLO — production canary launch tooling on a Robinhood fork.
@@ -45,6 +46,7 @@ contract ScoopHelloProductionLaunchToolingForkTest is Test {
 
     function setUp() public {
         vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"), PRE_HELLO_FORK_BLOCK);
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(ScoopFactory(ScoopHelloCanaryLaunch.EXPECTED_FACTORY));
         forkBlock = PRE_HELLO_FORK_BLOCK;
         // Prove the fork is pre-HELLO: production CREATE2 token slot must be empty.
         assertEq(HELLO_TOKEN.code.length, 0, "fork must be pre-HELLO (token CREATE2 slot occupied on tip)");
@@ -300,7 +302,7 @@ contract ScoopHelloProductionLaunchToolingForkTest is Test {
         bytes32 feeTopic = keccak256("LaunchFeePaid(address,address,uint256)");
         bytes32 createdTopic = keccak256("ScoopTokenCreated(address,string,string,string)");
         bytes32 launchedTopic = keccak256(
-            "TokenLaunched(address,address,bytes32,address,address,address,bytes32,uint256,uint160,int24,int24,int24,string,string)"
+            "TokenLaunched(address,address,bytes32,address,address,address,address,uint24,uint24,uint8,uint8,bytes32,uint256,uint160,int24,int24,int24,string,string)"
         );
         bytes32 buyTopic = keccak256("InitialBuyExecuted(address,address,address,uint256,uint256)");
 

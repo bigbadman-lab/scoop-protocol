@@ -8,20 +8,15 @@ import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 
 contract ScoopConfigureStockCatalogue20ForkTest is Test {
-    ScoopQuoteRegistry constant REGISTRY =
-        ScoopQuoteRegistry(0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD);
+    ScoopQuoteRegistry constant REGISTRY = ScoopQuoteRegistry(0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD);
 
-    ScoopPriceOracle constant ORACLE =
-        ScoopPriceOracle(0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12);
+    ScoopPriceOracle constant ORACLE = ScoopPriceOracle(0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12);
 
-    address constant AUTHORITY =
-        0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7;
+    address constant AUTHORITY = 0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7;
 
-    address constant ETH =
-        0x0000000000000000000000000000000000000000;
+    address constant ETH = 0x0000000000000000000000000000000000000000;
 
-    address constant USDG =
-        0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
+    address constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
 
     uint48 constant STOCK_MAX_AGE = 345_600;
 
@@ -51,11 +46,9 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
         assertTrue(ORACLE.isConfigured(USDG));
         assertTrue(ORACLE.isEnabled(USDG));
 
-        ScoopPriceOracle.PriceFeedConfig memory ethBefore =
-            ORACLE.getFeedConfig(ETH);
+        ScoopPriceOracle.PriceFeedConfig memory ethBefore = ORACLE.getFeedConfig(ETH);
 
-        ScoopPriceOracle.PriceFeedConfig memory usdgBefore =
-            ORACLE.getFeedConfig(USDG);
+        ScoopPriceOracle.PriceFeedConfig memory usdgBefore = ORACLE.getFeedConfig(USDG);
 
         vm.startPrank(AUTHORITY);
 
@@ -66,17 +59,12 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
             assertFalse(ORACLE.isConfigured(s.token));
 
             // TX1 equivalent: oracle first
-            ORACLE.configureFeed(
-                s.token,
-                s.feed,
-                STOCK_MAX_AGE
-            );
+            ORACLE.configureFeed(s.token, s.feed, STOCK_MAX_AGE);
 
             assertTrue(ORACLE.isConfigured(s.token));
             assertTrue(ORACLE.isEnabled(s.token));
 
-            ScoopPriceOracle.PriceFeedConfig memory cfg =
-                ORACLE.getFeedConfig(s.token);
+            ScoopPriceOracle.PriceFeedConfig memory cfg = ORACLE.getFeedConfig(s.token);
 
             assertEq(cfg.feed, s.feed);
             assertEq(cfg.maxAge, STOCK_MAX_AGE);
@@ -87,17 +75,11 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
             assertGt(priceUsd, 0);
 
             // TX2 equivalent: register only after oracle is healthy
-            REGISTRY.registerQuote(
-                s.token,
-                ScoopQuoteRegistry.QuoteType.Stock
-            );
+            REGISTRY.registerQuote(s.token, ScoopQuoteRegistry.QuoteType.Stock);
 
             assertTrue(REGISTRY.isRegistered(s.token));
             assertTrue(REGISTRY.isEnabled(s.token));
-            assertEq(
-                uint8(REGISTRY.quoteType(s.token)),
-                uint8(ScoopQuoteRegistry.QuoteType.Stock)
-            );
+            assertEq(uint8(REGISTRY.quoteType(s.token)), uint8(ScoopQuoteRegistry.QuoteType.Stock));
 
             console2.log("CONFIGURED", s.symbol);
             console2.log("priceUsd", priceUsd);
@@ -106,8 +88,7 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
         vm.stopPrank();
 
         // ETH unchanged
-        ScoopPriceOracle.PriceFeedConfig memory ethAfter =
-            ORACLE.getFeedConfig(ETH);
+        ScoopPriceOracle.PriceFeedConfig memory ethAfter = ORACLE.getFeedConfig(ETH);
 
         assertEq(ethAfter.feed, ethBefore.feed);
         assertEq(ethAfter.maxAge, ethBefore.maxAge);
@@ -118,8 +99,7 @@ contract ScoopConfigureStockCatalogue20ForkTest is Test {
         assertTrue(REGISTRY.isEnabled(ETH));
 
         // USDG unchanged
-        ScoopPriceOracle.PriceFeedConfig memory usdgAfter =
-            ORACLE.getFeedConfig(USDG);
+        ScoopPriceOracle.PriceFeedConfig memory usdgAfter = ORACLE.getFeedConfig(USDG);
 
         assertEq(usdgAfter.feed, usdgBefore.feed);
         assertEq(usdgAfter.maxAge, usdgBefore.maxAge);

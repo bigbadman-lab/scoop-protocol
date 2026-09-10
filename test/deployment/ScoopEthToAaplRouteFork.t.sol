@@ -20,6 +20,8 @@ import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopCreatorRegistry} from "../../src/ScoopCreatorRegistry.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
+import {ScoopFeeConfigFactoryGuard} from "../helpers/ScoopFeeConfigFactoryGuard.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -53,7 +55,6 @@ contract ScoopEthToAaplRouteForkTest is Test {
     address constant UNIVERSAL_ROUTER = 0x8876789976dEcBfCbBbe364623C63652db8C0904;
     address constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address constant V3_QUOTER = 0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7;
-    
 
     uint48 constant STOCK_MAX_AGE = 345_600;
     uint24 constant V3_FEE = 500;
@@ -80,7 +81,7 @@ contract ScoopEthToAaplRouteForkTest is Test {
         assertGt(UNIVERSAL_ROUTER.code.length, 0);
         assertGt(PERMIT2.code.length, 0);
         assertGt(WETH.code.length, 0);
-                assertEq(IERC20Metadata(WETH).symbol(), "WETH");
+        assertEq(IERC20Metadata(WETH).symbol(), "WETH");
         assertEq(IERC20Metadata(AAPL).symbol(), "AAPL");
         assertEq(IERC20Metadata(AAPL).decimals(), 18);
         assertEq(address(FACTORY.universalRouter()), UNIVERSAL_ROUTER);
@@ -155,6 +156,7 @@ contract ScoopEthToAaplRouteForkTest is Test {
     }
 
     function _launchTestAaplWithCreatorBuy() internal {
+        ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         uint256 quoteIn = 0.1e18;
         deal(AAPL, creator, quoteIn);
         ScoopFactory.LaunchParams memory params = _params("RouteTest", "RTEST", bytes32(uint256(802)));
@@ -183,7 +185,10 @@ contract ScoopEthToAaplRouteForkTest is Test {
             creatorId: CREATOR_REGISTRY.walletCreatorId(creator),
             quoteAsset: AAPL,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
     }
 

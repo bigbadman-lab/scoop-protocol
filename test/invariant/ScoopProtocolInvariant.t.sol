@@ -9,6 +9,7 @@ import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
 import {ScoopFeeDistributor} from "../../src/ScoopFeeDistributor.sol";
 import {ScoopTestToken} from "../../src/ScoopTestToken.sol";
 import {ScoopInvariantHandler, IScoopInvariantRegistrar} from "./ScoopInvariantHandler.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Local stateful invariants (no Uniswap).
@@ -57,10 +58,10 @@ contract ScoopProtocolInvariantTest is StdInvariant, Test, IScoopInvariantRegist
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         token = new ScoopTestToken("Scoop Test", "SCOOPT", address(this), type(uint128).max);
 
@@ -108,10 +109,10 @@ contract ScoopProtocolInvariantTest is StdInvariant, Test, IScoopInvariantRegist
         assertEq(distributor.deployer(), deployerRecipient);
         assertEq(distributor.buybackVault(), buybackVault);
         assertEq(distributor.operations(), operations);
-        assertEq(distributor.creatorRewardsBps(), CREATOR_REWARDS_BPS);
-        assertEq(distributor.deployerBps(), DEPLOYER_BPS);
-        assertEq(distributor.buybackBps(), BUYBACK_BPS);
-        assertEq(distributor.operationsBps(), OPERATIONS_BPS);
+        assertEq(distributor.CREATOR_REWARDS_BPS(), CREATOR_REWARDS_BPS);
+        assertEq(distributor.DEPLOYER_BPS(), DEPLOYER_BPS);
+        assertEq(distributor.BUYBACK_BPS(), BUYBACK_BPS);
+        assertEq(distributor.OPERATIONS_BPS(), OPERATIONS_BPS);
     }
 
     function invariant_sourceCreatorIdWriteOnce() public view {

@@ -36,6 +36,7 @@ import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMath} from "../src/libraries/ScoopLaunchMath.sol";
 import {ScoopLaunchMetadataHelpers} from "./helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 interface IUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -370,7 +371,10 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
                 creatorId: registry.walletCreatorId(walletCreator),
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: bytes32(uint256(30))
+                salt: bytes32(uint256(30)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             });
             vm.prank(deployer);
             (address token,,,,, uint256 bought) =
@@ -392,7 +396,10 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
                 creatorId: registry.walletCreatorId(walletCreator),
                 quoteAsset: AAPL_TOKEN,
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: salt
+                salt: salt,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             });
             uint256 aaplIn = 0.1e18;
             deal(AAPL_TOKEN, deployer, aaplIn);
@@ -423,15 +430,18 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
                 creatorId: creatorId,
                 quoteAsset: address(0),
                 metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-                salt: bytes32(uint256(40))
+                salt: bytes32(uint256(40)),
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
             })
         );
 
         ScoopFeeDistributor distributor = ScoopFeeDistributor(payable(feeDistributor));
-        assertEq(distributor.creatorRewardsBps(), 7000);
-        assertEq(distributor.deployerBps(), 400);
-        assertEq(distributor.buybackBps(), 2000);
-        assertEq(distributor.operationsBps(), 600);
+        assertEq(distributor.CREATOR_REWARDS_BPS(), 7000);
+        assertEq(distributor.DEPLOYER_BPS(), 400);
+        assertEq(distributor.BUYBACK_BPS(), 2000);
+        assertEq(distributor.OPERATIONS_BPS(), 600);
 
         uint256 deployerEthBefore = deployer.balance;
         _generateFees(token);
@@ -507,7 +517,10 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: bytes32(uint256(50))
+            salt: bytes32(uint256(50)),
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         assertEq(params.quoteAsset, address(0));
         // Geometry is derived solely by ScoopLaunchMath inside launch().
@@ -555,7 +568,10 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         return factory.launch{value: 0.0005 ether}(params);
@@ -571,7 +587,10 @@ contract ScoopFactoryMaxRangeLiquidityForkTest is Test {
             creatorId: registry.walletCreatorId(walletCreator),
             quoteAsset: AAPL_TOKEN,
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: salt
+            salt: salt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
         vm.prank(deployer);
         return factory.launch{value: 0.0005 ether}(params);

@@ -14,6 +14,7 @@ import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
 import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 import {ScoopLaunchMetadataHelpers} from "../helpers/ScoopLaunchMetadataHelpers.sol";
+import {ScoopFeeTypes} from "../../src/libraries/ScoopFeeTypes.sol";
 
 /**
  * @notice Permissionless CREATE2 deployer griefing analysis.
@@ -104,42 +105,45 @@ contract ScoopPermissionlessDeployerAttackTest is Test {
         bytes32 userSalt = bytes32(uint256(2));
         bytes32 launchDomainSalt = _launchDomainSalt(_launchSalt(victim, userSalt));
 
-        (address predDist,) = launchDeployer.predictLaunch(
-            creatorRewardsAddr,
-            victim,
-            buybackVault,
-            operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS,
+        (address predDist,,) = launchDeployer.predictLaunch(
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: creatorRewardsAddr,
+                deployer: victim,
+                buybackVault: buybackVault,
+                operations: operations,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             launchDomainSalt
         );
 
         vm.prank(attacker);
-        (address dist,) = launchDeployer.deployLaunch(
-            creatorRewardsAddr,
-            victim,
-            buybackVault,
-            operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS,
+        (address dist,,) = launchDeployer.deployLaunch(
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: creatorRewardsAddr,
+                deployer: victim,
+                buybackVault: buybackVault,
+                operations: operations,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             launchDomainSalt
         );
         assertEq(dist, predDist);
 
         vm.expectRevert(Errors.FailedDeployment.selector);
         launchDeployer.deployLaunch(
-            creatorRewardsAddr,
-            victim,
-            buybackVault,
-            operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS,
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: creatorRewardsAddr,
+                deployer: victim,
+                buybackVault: buybackVault,
+                operations: operations,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             launchDomainSalt
         );
     }
@@ -303,14 +307,15 @@ contract ScoopPermissionlessDeployerAttackTest is Test {
 
         vm.prank(attacker);
         ld.deployLaunch(
-            address(rewards_),
-            dep,
-            buybackVault,
-            operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS,
+            ScoopLaunchDeployer.LaunchFeeConfig({
+                creatorRewards: address(rewards_),
+                deployer: dep,
+                buybackVault: buybackVault,
+                operations: operations,
+                additionalFee: 0,
+                creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+                additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
+            }),
             launchDomainSalt
         );
 
@@ -321,7 +326,10 @@ contract ScoopPermissionlessDeployerAttackTest is Test {
             creatorId: reg.walletCreatorId(wc),
             quoteAsset: address(0),
             metadata: ScoopLaunchMetadataHelpers.defaultMetadata(),
-            salt: userSalt
+            salt: userSalt,
+            additionalFee: 0,
+            creatorAllocationDestination: ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            additionalFeeDestination: ScoopFeeTypes.AdditionalFeeDestination.Creator
         });
 
         uint256 launchFee = factory.LAUNCH_FEE();

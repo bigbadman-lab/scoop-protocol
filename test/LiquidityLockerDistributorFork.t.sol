@@ -24,6 +24,7 @@ import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopCreatorRegistry} from "../src/ScoopCreatorRegistry.sol";
 import {ScoopCreatorRewards} from "../src/ScoopCreatorRewards.sol";
+import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
 
 interface IHasPermit2 {
     function permit2() external view returns (IAllowanceTransfer);
@@ -110,10 +111,10 @@ contract LiquidityLockerDistributorForkTest is Test {
             deployerRecipient,
             buybackVault,
             operations,
-            CREATOR_REWARDS_BPS,
-            DEPLOYER_BPS,
-            BUYBACK_BPS,
-            OPERATIONS_BPS
+            makeAddr("holderRewards"),
+            0,
+            ScoopFeeTypes.CreatorAllocationDestination.Creator,
+            ScoopFeeTypes.AdditionalFeeDestination.Creator
         );
         locker = new ScoopLiquidityLocker(POSITION_MANAGER_ADDR, address(distributor));
 
@@ -156,10 +157,10 @@ contract LiquidityLockerDistributorForkTest is Test {
         assertEq(distributor.deployer(), deployerRecipient);
         assertEq(distributor.buybackVault(), buybackVault);
         assertEq(distributor.operations(), operations);
-        assertEq(distributor.creatorRewardsBps(), 7000);
-        assertEq(distributor.deployerBps(), 400);
-        assertEq(distributor.buybackBps(), 2000);
-        assertEq(distributor.operationsBps(), 600);
+        assertEq(distributor.CREATOR_REWARDS_BPS(), 7000);
+        assertEq(distributor.DEPLOYER_BPS(), 400);
+        assertEq(distributor.BUYBACK_BPS(), 2000);
+        assertEq(distributor.OPERATIONS_BPS(), 600);
     }
 
     function test_zeroPositionManagerRejected() public {
