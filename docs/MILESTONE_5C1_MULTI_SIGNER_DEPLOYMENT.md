@@ -47,11 +47,13 @@ Treasury / Buyback / Operations: `cast code` → `0x` (EOAs).
 ### Phase A — `script/DeployScoopGlobals.s.sol`
 
 - Signer: Scoop Deploy 1 (`--sender "$DEPLOYER_ADDRESS"`)
-- Deploys: CreatorRegistry, TokenDeployer, LaunchDeployer, QuoteRegistry, PriceOracle, FactoryDeployer → CreatorRewards + Factory
+- Deploys: CreatorRegistry, TokenDeployer, LaunchDeployer (`ROOT_PUBLISHER` required), QuoteRegistry, PriceOracle, FactoryDeployer → CreatorRewards + Factory
 - Does **not** register quotes or configure feeds
 - Requires `msg.sender == DEPLOYER_ADDRESS`
 - Requires Deploy ≠ Auth ≠ Verify
-- Logs immutable deployment manifest, then **STOP**
+- Logs immutable deployment manifest (includes `rootPublisher`), then **STOP**
+
+**Canonical fee note:** markets use `BASE_FEE + additionalFee` (not a fixed PoolKey fee of 10_000 for every launch). Historical Factory `0x15E874…` is test-only.
 
 ### Phase B — `script/ConfigureScoopProtocol.s.sol`
 

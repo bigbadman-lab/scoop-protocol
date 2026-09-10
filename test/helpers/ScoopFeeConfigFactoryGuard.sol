@@ -5,7 +5,9 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 
-/// @dev P1 live-canary guards: old Factory bytecode lacks fee-config ABI.
+/// @dev Obsolete live-canary guards: pre-P1 Factory at 0x15E874… lacks fee-config ABI.
+///      Prefer fresh canonical `ScoopProtocolDeploy.deployGlobals` coverage for P1+ stacks.
+///      Remaining skips are historical forensics against the old live Factory, not the canonical path.
 library ScoopFeeConfigFactoryGuard {
     Vm constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 

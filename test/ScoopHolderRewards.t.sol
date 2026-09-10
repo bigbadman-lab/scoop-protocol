@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {ScoopHolderRewards} from "../src/ScoopHolderRewards.sol";
+import {ScoopLaunchDeployer} from "../src/ScoopLaunchDeployer.sol";
 import {ScoopTestToken} from "../src/ScoopTestToken.sol";
 import {ScoopHolderRewardsMerkle} from "./helpers/ScoopHolderRewardsMerkle.sol";
 
@@ -346,6 +347,48 @@ contract ScoopHolderRewardsTest is Test {
         v.initializeFeeDistributor(distributor);
         vm.prank(launchDeployer);
         vm.expectRevert(ScoopHolderRewards.AlreadyInitialized.selector);
+        v.initializeFeeDistributor(distributor);
+    }
+
+    function test_initialize_attackerCannotFrontRunBeforeOrAfter() public {
+        ScoopHolderRewards v = new ScoopHolderRewards(publisher, launchDeployer);
+        address attackerDist = makeAddr("attackerDist");
+
+        // Before intended init: attacker cannot bind an alternate distributor.
+        vm.prank(alice);
+        vm.expectRevert(ScoopHolderRewards.UnauthorizedInitializer.selector);
+        v.initializeFeeDistributor(attackerDist);
+        assertEq(v.feeDistributor(), address(0));
+
+        // Canonical init.
+        vm.prank(launchDeployer);
+        v.initializeFeeDistributor(distributor);
+        assertEq(v.feeDistributor(), distributor);
+
+        // After intended init: wrong caller is rejected (auth check precedes already-initialized).
+        vm.prank(alice);
+        vm.expectRevert(ScoopHolderRewards.UnauthorizedInitializer.selector);
+        v.initializeFeeDistributor(attackerDist);
+        assertEq(v.feeDistributor(), distributor);
+
+        vm.prank(launchDeployer);
+        vm.expectRevert(ScoopHolderRewards.AlreadyInitialized.selector);
+        v.initializeFeeDistributor(attackerDist);
+    }
+
+    function test_initialize_zeroDistributorReverts() public {
+        ScoopHolderRewards v = new ScoopHolderRewards(publisher, launchDeployer);
+        vm.prank(launchDeployer);
+        vm.expectRevert(ScoopHolderRewards.ZeroAddress.selector);
+        v.initializeFeeDistributor(address(0));
+    }
+
+    function test_initialize_wrongLaunchDeployerCannotInitPredictedVault() public {
+        // Vaults bind immutable launchDeployer at construction; a second deployer cannot init them.
+        ScoopLaunchDeployer otherDeployer = new ScoopLaunchDeployer(makeAddr("pm2"), publisher);
+        ScoopHolderRewards v = new ScoopHolderRewards(publisher, address(launchDeployer));
+        vm.prank(address(otherDeployer));
+        vm.expectRevert(ScoopHolderRewards.UnauthorizedInitializer.selector);
         v.initializeFeeDistributor(distributor);
     }
 

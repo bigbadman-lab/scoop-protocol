@@ -67,6 +67,7 @@ contract DeployScoop is Script {
         cfg.launchFeeRecipient = vm.envAddress("LAUNCH_FEE_RECIPIENT");
         cfg.buybackVault = vm.envAddress("BUYBACK_VAULT");
         cfg.operations = vm.envAddress("OPERATIONS");
+        cfg.rootPublisher = vm.envAddress("ROOT_PUBLISHER");
         cfg.ethMaxAge = uint48(vm.envUint("SCOOP_ETH_MAX_AGE"));
         cfg.includeAaplRehearsal = vm.envOr("SCOOP_INCLUDE_AAPL_REHEARSAL", false);
         if (cfg.includeAaplRehearsal) {

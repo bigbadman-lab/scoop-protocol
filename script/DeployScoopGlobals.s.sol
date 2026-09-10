@@ -18,6 +18,7 @@ import {ScoopProtocolDeploy} from "./ScoopProtocolDeploy.sol";
  *      LAUNCH_FEE_RECIPIENT
  *      BUYBACK_VAULT
  *      OPERATIONS
+ *      ROOT_PUBLISHER   (protocol Merkle publisher; immutable on LaunchDeployer)
  *      SCOOP_ETH_MAX_AGE   (recorded in manifest for Phase B; not applied here)
  *
  * Simulation (5C.1 - no broadcast):
@@ -87,6 +88,7 @@ contract DeployScoopGlobals is Script {
         cfg.launchFeeRecipient = vm.envAddress("LAUNCH_FEE_RECIPIENT");
         cfg.buybackVault = vm.envAddress("BUYBACK_VAULT");
         cfg.operations = vm.envAddress("OPERATIONS");
+        cfg.rootPublisher = vm.envAddress("ROOT_PUBLISHER");
         cfg.ethMaxAge = uint48(vm.envUint("SCOOP_ETH_MAX_AGE"));
         cfg.includeAaplRehearsal = false;
         cfg.aaplMaxAge = 0;

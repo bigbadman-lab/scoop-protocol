@@ -127,4 +127,36 @@ contract ScoopLaunchDeployerTest is Test {
         assertEq(buybackVault.balance, 3000);
         assertEq(operations.balance, 900);
     }
+
+    function test_predictedHolderMatchesAndOnlyLaunchDeployerInits() public {
+        ScoopLaunchDeployer.LaunchFeeConfig memory cfg = _cfg(0);
+        bytes32 salt = bytes32(uint256(77));
+        (address pDist, address pLock, address pHold) = launchDeployer.predictLaunch(cfg, salt);
+
+        // Pre-deploy: predicted vault has no code — no initializer surface yet.
+        assertEq(pHold.code.length, 0);
+
+        (address distributor, address locker, address holder) = launchDeployer.deployLaunch(cfg, salt);
+        assertEq(distributor, pDist);
+        assertEq(locker, pLock);
+        assertEq(holder, pHold);
+
+        ScoopHolderRewards vault = ScoopHolderRewards(payable(holder));
+        assertEq(vault.feeDistributor(), distributor);
+        assertEq(vault.rootPublisher(), rootPublisher);
+        assertEq(vault.launchDeployer(), address(launchDeployer));
+
+        // Post-deploy: write-once already consumed by LaunchDeployer.
+        vm.prank(address(launchDeployer));
+        vm.expectRevert(ScoopHolderRewards.AlreadyInitialized.selector);
+        vault.initializeFeeDistributor(makeAddr("other"));
+    }
+
+    function test_launcherCannotOverrideRootPublisher() public view {
+        // LaunchFeeConfig / LaunchParams have no publisher field; publisher is LaunchDeployer immutable only.
+        ScoopLaunchDeployer.LaunchFeeConfig memory cfg = _cfg(0);
+        assertEq(launchDeployer.rootPublisher(), rootPublisher);
+        // Silence unused warning for cfg shape stability.
+        assertEq(cfg.additionalFee, 0);
+    }
 }

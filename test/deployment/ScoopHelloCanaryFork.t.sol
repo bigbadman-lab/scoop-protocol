@@ -25,6 +25,7 @@ import {ScoopCreatorRewards} from "../../src/ScoopCreatorRewards.sol";
 import {ScoopToken} from "../../src/ScoopToken.sol";
 import {ScoopFactory} from "../../src/ScoopFactory.sol";
 import {ScoopFeeDistributor} from "../../src/ScoopFeeDistributor.sol";
+import {ScoopHolderRewards} from "../../src/ScoopHolderRewards.sol";
 import {ScoopLiquidityLocker} from "../../src/ScoopLiquidityLocker.sol";
 import {ScoopLaunchDeployer} from "../../src/ScoopLaunchDeployer.sol";
 import {ScoopLiquidityCurveHelpers} from "../helpers/ScoopLiquidityCurveHelpers.sol";
@@ -88,6 +89,7 @@ contract ScoopHelloCanaryForkTest is Test {
             launchFeeRecipient: launchFeeRecipient,
             buybackVault: buybackVault,
             operations: operations,
+            rootPublisher: makeAddr("rootPublisher_TEST_FORK_ONLY"),
             ethMaxAge: REHEARSAL_ETH_MAX_AGE,
             includeAaplRehearsal: false,
             aaplMaxAge: 0
@@ -148,8 +150,11 @@ contract ScoopHelloCanaryForkTest is Test {
         assertEq(rec.quoteAsset, address(0));
         assertEq(rec.feeDistributor, helloFeeDistributor);
         assertEq(rec.liquidityLocker, helloLocker);
+        assertTrue(rec.holderRewards != address(0));
         assertEq(rec.lpTokenId, helloLpTokenId);
         assertEq(PoolId.unwrap(rec.poolId), PoolId.unwrap(helloPoolId));
+        assertEq(ScoopHolderRewards(payable(rec.holderRewards)).rootPublisher(), launchDeployer.rootPublisher());
+        assertEq(ScoopHolderRewards(payable(rec.holderRewards)).feeDistributor(), helloFeeDistributor);
 
         assertEq(IERC721(ScoopProtocolDeploy.POSITION_MANAGER).ownerOf(helloLpTokenId), helloLocker);
         assertGt(IPositionManager(ScoopProtocolDeploy.POSITION_MANAGER).getPositionLiquidity(helloLpTokenId), 0);

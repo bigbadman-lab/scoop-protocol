@@ -19,10 +19,11 @@ No one-shot deploy+configure broadcast.
 3. Confirm bytecode at PoolManager / PositionManager / UniversalRouter / Permit2.
 4. Confirm FINAL role mapping in `.env` (Deploy ≠ Auth ≠ Verify).
 5. Confirm payable recipients (EOA or proven `receive`); send 0.01 ETH test transfers.
-6. Record Scoop Deploy 1 current nonce; avoid unrelated txs until Phase A completes.
-7. Set `SCOOP_ETH_MAX_AGE=86400` (proposed production) and `SCOOP_BROADCAST=false` until ready.
-8. Generate HELLO salt offline; do not disclose early.
-9. Confirm HELLO production image CID.
+6. Confirm `ROOT_PUBLISHER` is set (non-zero). Production publisher wallet selection is deferred — do not invent one casually.
+7. Record Scoop Deploy 1 current nonce; avoid unrelated txs until Phase A completes.
+8. Set `SCOOP_ETH_MAX_AGE=86400` (proposed production) and `SCOOP_BROADCAST=false` until ready.
+9. Generate HELLO salt offline; do not disclose early.
+10. Confirm HELLO production image CID.
 
 ## 1. Phase A — Scoop Deploy 1 broadcasts globals
 
@@ -38,19 +39,25 @@ Deploys only:
 
 1. CreatorRegistry  
 2. TokenDeployer  
-3. LaunchDeployer  
+3. LaunchDeployer (**requires `ROOT_PUBLISHER`** — immutable Merkle publisher for all HolderRewards vaults)  
 4. QuoteRegistry  
 5. PriceOracle  
 6. FactoryDeployer → CreatorRewards + Factory  
 
 Does **not** register quotes or configure feeds.
 
+**Fee model (canonical):** `PoolKey.fee = BASE_FEE (10_000) + additionalFee (0…20_000, step 1_000)`.  
+`BASE_FEE` / `LP_FEE` constant `10_000` is the base leg, not “every market fee is fixed 1%”.
+
+**Historical note:** live Factory `0x15E874…` and related HELLO canaries are **pre-P1/P2 test-only**. Canonical redeploy replaces that stack; do not treat old addresses as final production.
+
 ### STOP after Phase A
 
 - Copy full deployment manifest into secure ops notes + `.env` handoff vars  
 - Verify code at every address  
-- Assert immutables / authorities / `predictedFactory` / `sourceRegistrar`  
+- Assert immutables / authorities / `predictedFactory` / `sourceRegistrar` / `rootPublisher`  
 - Confirm ETH is still **unregistered / unconfigured**  
+- Record `HANDOFF_SCOOP_ROOT_PUBLISHER` alongside other handoff addresses  
 - Do not proceed until a second human confirms the handoff  
 
 ## 2. Phase B — Scoop Auth 1 configures ETH only

@@ -50,6 +50,7 @@ contract ScoopMainnetDeploymentForkTest is Test {
             launchFeeRecipient: launchFeeRecipient,
             buybackVault: buybackVault,
             operations: operations,
+            rootPublisher: makeAddr("rootPublisher_TEST_FORK_ONLY"),
             ethMaxAge: REHEARSAL_ETH_MAX_AGE,
             includeAaplRehearsal: true,
             aaplMaxAge: REHEARSAL_AAPL_MAX_AGE
@@ -104,7 +105,9 @@ contract ScoopMainnetDeploymentForkTest is Test {
         assertEq(d.factory.buybackVault(), buybackVault);
         assertEq(d.factory.operations(), operations);
         assertEq(d.factory.launchFeeRecipient(), launchFeeRecipient);
+        assertEq(d.launchDeployer.rootPublisher(), cfg.rootPublisher);
         assertEq(d.factory.LAUNCH_FEE(), 0.0005 ether);
+        assertEq(uint256(d.factory.BASE_FEE()), 10_000);
         assertEq(uint256(d.factory.LP_FEE()), 10_000);
         assertEq(int256(d.factory.TICK_SPACING()), int256(10));
     }

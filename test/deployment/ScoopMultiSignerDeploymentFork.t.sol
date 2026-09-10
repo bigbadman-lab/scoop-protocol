@@ -57,6 +57,7 @@ contract ScoopMultiSignerDeploymentForkTest is Test {
             launchFeeRecipient: launchFeeRecipient,
             buybackVault: buybackVault,
             operations: operations,
+            rootPublisher: makeAddr("rootPublisher_TEST_FORK_ONLY"),
             ethMaxAge: ethMaxAge,
             includeAaplRehearsal: false,
             aaplMaxAge: 0
@@ -86,6 +87,7 @@ contract ScoopMultiSignerDeploymentForkTest is Test {
         assertEq(d.creatorRegistry.verificationAuthority(), verificationAuthority);
         assertEq(d.quoteRegistry.registryAuthority(), authority);
         assertEq(d.priceOracle.oracleAuthority(), authority);
+        assertEq(d.launchDeployer.rootPublisher(), cfg.rootPublisher);
 
         assertFalse(d.quoteRegistry.isRegistered(address(0)));
         assertFalse(d.priceOracle.isConfigured(address(0)));

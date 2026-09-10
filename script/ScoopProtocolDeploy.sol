@@ -14,8 +14,10 @@ import {ScoopFactoryDeployer} from "../src/ScoopFactoryDeployer.sol";
 
 /**
  * @title ScoopProtocolDeploy
- * @notice Shared SCOOP V1 deployment helpers for multi-signer Phase A/B tooling and fork rehearsals.
+ * @notice Shared SCOOP canonical deployment helpers for multi-signer Phase A/B tooling and fork rehearsals.
  * @dev No silent defaults. Phase A deploys globals only. Phase B configures ETH quote/oracle only.
+ *      `rootPublisher` is a protocol-level immutable (LaunchDeployer → every HolderRewards vault).
+ *      PoolKey.fee = BASE_FEE (10_000) + additionalFee (0…20_000); BASE_FEE alone is not every market fee.
  */
 library ScoopProtocolDeploy {
     // FINAL PRODUCTION VALUE - Uniswap v4 stack on Robinhood Chain (chainId 4663).
@@ -48,6 +50,8 @@ library ScoopProtocolDeploy {
         address launchFeeRecipient;
         address buybackVault;
         address operations;
+        /// @notice Immutable Merkle root publisher for all HolderRewards vaults from this stack.
+        address rootPublisher;
         uint48 ethMaxAge;
         bool includeAaplRehearsal;
         uint48 aaplMaxAge;
@@ -97,6 +101,7 @@ library ScoopProtocolDeploy {
         if (cfg.launchFeeRecipient == address(0)) revert ZeroConfigAddress("LAUNCH_FEE_RECIPIENT");
         if (cfg.buybackVault == address(0)) revert ZeroConfigAddress("BUYBACK_VAULT");
         if (cfg.operations == address(0)) revert ZeroConfigAddress("OPERATIONS");
+        if (cfg.rootPublisher == address(0)) revert ZeroConfigAddress("ROOT_PUBLISHER");
         if (cfg.ethMaxAge == 0) revert ZeroConfigAddress("SCOOP_ETH_MAX_AGE");
         if (cfg.includeAaplRehearsal && cfg.aaplMaxAge == 0) revert ZeroConfigAddress("SCOOP_AAPL_MAX_AGE");
     }
@@ -145,9 +150,7 @@ library ScoopProtocolDeploy {
         d.gas.tokenDeployer = g0 - gasleft();
 
         g0 = gasleft();
-        d.launchDeployer = new ScoopLaunchDeployer(
-            POSITION_MANAGER, address(uint160(uint256(keccak256("SCOOP_HOLDER_REWARDS_PUBLISHER"))))
-        );
+        d.launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER, cfg.rootPublisher);
         d.gas.launchDeployer = g0 - gasleft();
 
         g0 = gasleft();
@@ -256,6 +259,9 @@ library ScoopProtocolDeploy {
         if (address(d.factory.launchDeployer()) != address(d.launchDeployer)) {
             revert PostDeployAssertionFailed("launchDeployer");
         }
+        if (d.launchDeployer.rootPublisher() != cfg.rootPublisher) {
+            revert PostDeployAssertionFailed("rootPublisher");
+        }
         if (address(d.factory.quoteRegistry()) != address(d.quoteRegistry)) {
             revert PostDeployAssertionFailed("quoteRegistry");
         }
@@ -269,6 +275,7 @@ library ScoopProtocolDeploy {
         }
 
         if (d.factory.LAUNCH_FEE() != 0.0005 ether) revert PostDeployAssertionFailed("LAUNCH_FEE");
+        if (d.factory.BASE_FEE() != 10_000) revert PostDeployAssertionFailed("BASE_FEE");
         if (d.factory.LP_FEE() != 10_000) revert PostDeployAssertionFailed("LP_FEE");
         if (d.factory.TICK_SPACING() != 10) revert PostDeployAssertionFailed("TICK_SPACING");
 
@@ -343,6 +350,9 @@ library ScoopProtocolDeploy {
         if (address(d.factory.launchDeployer()) != address(d.launchDeployer)) {
             revert PostDeployAssertionFailed("launchDeployer");
         }
+        if (d.launchDeployer.rootPublisher() != cfg.rootPublisher) {
+            revert PostDeployAssertionFailed("rootPublisher");
+        }
         if (address(d.factory.quoteRegistry()) != address(d.quoteRegistry)) {
             revert PostDeployAssertionFailed("quoteRegistry");
         }
@@ -355,6 +365,7 @@ library ScoopProtocolDeploy {
             revert PostDeployAssertionFailed("launchFeeRecipient");
         }
         if (d.factory.LAUNCH_FEE() != 0.0005 ether) revert PostDeployAssertionFailed("LAUNCH_FEE");
+        if (d.factory.BASE_FEE() != 10_000) revert PostDeployAssertionFailed("BASE_FEE");
         if (d.factory.LP_FEE() != 10_000) revert PostDeployAssertionFailed("LP_FEE");
         if (d.factory.TICK_SPACING() != 10) revert PostDeployAssertionFailed("TICK_SPACING");
 
@@ -362,13 +373,14 @@ library ScoopProtocolDeploy {
     }
 
     function logManifest(Deployed memory d, Config memory cfg, uint256 forkBlock) internal view {
-        console2.log("==== SCOOP V1 DEPLOYMENT MANIFEST ====");
+        console2.log("==== SCOOP CANONICAL DEPLOYMENT MANIFEST ====");
         console2.log("MODE", "SIMULATION_OR_REHEARSAL");
         console2.log("chainId", EXPECTED_CHAIN_ID);
         console2.log("forkBlock", forkBlock);
         console2.log("ScoopCreatorRegistry", address(d.creatorRegistry));
         console2.log("ScoopTokenDeployer", address(d.tokenDeployer));
         console2.log("ScoopLaunchDeployer", address(d.launchDeployer));
+        console2.log("rootPublisher", cfg.rootPublisher);
         console2.log("ScoopQuoteRegistry", address(d.quoteRegistry));
         console2.log("ScoopPriceOracle", address(d.priceOracle));
         console2.log("ScoopFactoryDeployer", address(d.factoryDeployer));
@@ -387,8 +399,12 @@ library ScoopProtocolDeploy {
         console2.log("operations", cfg.operations);
         console2.log("ethMaxAge", uint256(cfg.ethMaxAge));
         console2.log("includeAaplRehearsal", cfg.includeAaplRehearsal);
+        console2.log("HANDOFF_SCOOP_LAUNCH_DEPLOYER", address(d.launchDeployer));
+        console2.log("HANDOFF_SCOOP_ROOT_PUBLISHER", cfg.rootPublisher);
         console2.log("HANDOFF_SCOOP_QUOTE_REGISTRY", address(d.quoteRegistry));
         console2.log("HANDOFF_SCOOP_PRICE_ORACLE", address(d.priceOracle));
+        console2.log("HANDOFF_SCOOP_FACTORY", address(d.factory));
+        console2.log("HANDOFF_SCOOP_CREATOR_REWARDS", address(d.creatorRewards));
         console2.log("STOP - Phase A complete. Phase B must be signed by Scoop Auth 1.");
     }
 
