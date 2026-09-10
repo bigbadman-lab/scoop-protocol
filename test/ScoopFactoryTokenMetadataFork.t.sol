@@ -86,7 +86,7 @@ contract ScoopFactoryTokenMetadataForkTest is Test {
 
         registry = new ScoopCreatorRegistry(authority);
         tokenDeployer = new ScoopTokenDeployer();
-        launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR);
+        launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR, makeAddr("holderRewardsPublisher"));
         quoteRegistry = new ScoopQuoteRegistry(quoteAuthority);
         priceOracle = new ScoopPriceOracle(oracleAuthority);
 

@@ -9,6 +9,7 @@ import {ScoopTestToken} from "../src/ScoopTestToken.sol";
 import {IScoopCreatorRewards} from "../src/interfaces/IScoopCreatorRewards.sol";
 import {ScoopFeeMath} from "../src/libraries/ScoopFeeMath.sol";
 import {ScoopFeeTypes} from "../src/libraries/ScoopFeeTypes.sol";
+import {MockHolderRewards} from "./mocks/MockHolderRewards.sol";
 
 /// @dev Minimal CreatorRewards stand-in for distributor unit tests (no registry/source gating).
 contract MockCreatorRewards is IScoopCreatorRewards {
@@ -38,6 +39,7 @@ contract RejectETH {
 
 contract ScoopFeeDistributorTest is Test {
     MockCreatorRewards creatorRewards;
+    MockHolderRewards holderVault;
     address deployerRecipient;
     address buybackVault;
     address operations;
@@ -49,10 +51,11 @@ contract ScoopFeeDistributorTest is Test {
 
     function setUp() public {
         creatorRewards = new MockCreatorRewards();
+        holderVault = new MockHolderRewards();
         deployerRecipient = makeAddr("deployer");
         buybackVault = makeAddr("buybackVault");
         operations = makeAddr("operations");
-        holderRewards = makeAddr("holderRewards");
+        holderRewards = address(holderVault);
         caller = makeAddr("caller");
 
         distributor = _dist(
@@ -147,7 +150,7 @@ contract ScoopFeeDistributorTest is Test {
         assertEq(deployerRecipient.balance, 400);
         assertEq(buybackVault.balance, 2000);
         assertEq(operations.balance, 600);
-        assertEq(holderRewards.balance, 0);
+        assertEq(holderVault.ethDeposited(), 0);
         assertEq(address(distributor).balance, 0);
     }
 
@@ -165,7 +168,7 @@ contract ScoopFeeDistributorTest is Test {
         assertEq(deployerRecipient.balance, 200 + 5000);
         assertEq(buybackVault.balance, 1000);
         assertEq(operations.balance, 300);
-        assertEq(holderRewards.balance, 0);
+        assertEq(holderVault.ethDeposited(), 0);
     }
 
     function test_combinedCreatorLegsETH() public {
@@ -191,7 +194,7 @@ contract ScoopFeeDistributorTest is Test {
 
         // F=30000, basePart=10000, extra=20000
         // holders base 7000 + extra 20000 = 27000
-        assertEq(holderRewards.balance, 27_000);
+        assertEq(holderVault.ethDeposited(), 27_000);
         assertEq(creatorRewards.ethCredited(), 0);
         assertEq(deployerRecipient.balance, 400);
         assertEq(buybackVault.balance, 2000);
@@ -206,7 +209,7 @@ contract ScoopFeeDistributorTest is Test {
         d.distributeToken(address(token));
 
         // basePart=5000 → holders 3500, deployer 200, buyback 1000, ops 300; extra 5000 → deployer
-        assertEq(token.balanceOf(holderRewards), 3500);
+        assertEq(holderVault.tokenDeposited(address(token)), 3500);
         assertEq(token.balanceOf(deployerRecipient), 5200);
         assertEq(token.balanceOf(buybackVault), 1000);
         assertEq(token.balanceOf(operations), 300);
@@ -266,14 +269,14 @@ contract ScoopFeeDistributorTest is Test {
         uint256 depBefore = deployerRecipient.balance;
         uint256 buyBefore = buybackVault.balance;
         uint256 opsBefore = operations.balance;
-        uint256 holdBefore = holderRewards.balance;
+        uint256 holdBefore = holderVault.ethDeposited();
         uint256 crBefore = creatorRewards.ethCredited();
 
         vm.deal(address(d), balance);
         d.distributeETH();
 
         uint256 out = (deployerRecipient.balance - depBefore) + (buybackVault.balance - buyBefore)
-            + (operations.balance - opsBefore) + (holderRewards.balance - holdBefore)
+            + (operations.balance - opsBefore) + (holderVault.ethDeposited() - holdBefore)
             + (creatorRewards.ethCredited() - crBefore);
         assertEq(out, balance);
         assertEq(address(d).balance, 0);
@@ -292,12 +295,13 @@ contract ScoopFeeDistributorTest is Test {
 
         uint256 cr = creatorRewards.ethCredited();
         uint256 dep = deployerRecipient.balance;
-        uint256 hold = holderRewards.balance;
+        uint256 hold = holderVault.ethDeposited();
 
         // reset recipients via new mock path — compare equal splits on fresh distributor b
         creatorRewards = new MockCreatorRewards();
         deployerRecipient = makeAddr("deployer2");
-        holderRewards = makeAddr("holder2");
+        holderVault = new MockHolderRewards();
+        holderRewards = address(holderVault);
         buybackVault = makeAddr("buyback2");
         operations = makeAddr("ops2");
         b = new ScoopFeeDistributor(
@@ -318,6 +322,6 @@ contract ScoopFeeDistributorTest is Test {
         assertEq(dep, 400);
         assertEq(deployerRecipient.balance, 400);
         assertEq(hold, 0);
-        assertEq(holderRewards.balance, 0);
+        assertEq(holderVault.ethDeposited(), 0);
     }
 }

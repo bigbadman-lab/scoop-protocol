@@ -145,7 +145,9 @@ library ScoopProtocolDeploy {
         d.gas.tokenDeployer = g0 - gasleft();
 
         g0 = gasleft();
-        d.launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER);
+        d.launchDeployer = new ScoopLaunchDeployer(
+            POSITION_MANAGER, address(uint160(uint256(keccak256("SCOOP_HOLDER_REWARDS_PUBLISHER"))))
+        );
         d.gas.launchDeployer = g0 - gasleft();
 
         g0 = gasleft();

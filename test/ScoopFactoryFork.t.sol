@@ -27,6 +27,7 @@ import {ScoopLaunchDeployer} from "../src/ScoopLaunchDeployer.sol";
 import {ScoopFactory} from "../src/ScoopFactory.sol";
 import {ScoopFactoryDeployer} from "../src/ScoopFactoryDeployer.sol";
 import {ScoopFeeDistributor} from "../src/ScoopFeeDistributor.sol";
+import {ScoopHolderRewards} from "../src/ScoopHolderRewards.sol";
 import {ScoopLiquidityLocker} from "../src/ScoopLiquidityLocker.sol";
 import {ScoopQuoteRegistry} from "../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../src/ScoopPriceOracle.sol";
@@ -90,7 +91,7 @@ contract ScoopFactoryForkTest is Test {
 
         registry = new ScoopCreatorRegistry(authority);
         tokenDeployer = new ScoopTokenDeployer();
-        launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR);
+        launchDeployer = new ScoopLaunchDeployer(POSITION_MANAGER_ADDR, makeAddr("holderRewardsPublisher"));
 
         quoteRegistry = new ScoopQuoteRegistry(quoteAuthority);
         priceOracle = new ScoopPriceOracle(oracleAuthority);
@@ -536,6 +537,11 @@ contract ScoopFactoryForkTest is Test {
         assertEq(uint8(distributor.additionalFeeDestination()), uint8(ScoopFeeTypes.AdditionalFeeDestination.Holders));
         assertEq(rewards.sourceCreatorId(feeDistributor), creatorId);
 
+        ScoopHolderRewards vault = ScoopHolderRewards(payable(rec.holderRewards));
+        assertEq(vault.feeDistributor(), feeDistributor);
+        assertEq(vault.rootPublisher(), launchDeployer.rootPublisher());
+        assertEq(vault.launchDeployer(), address(launchDeployer));
+
         uint256 bought = _buy(token, 0.02 ether);
         assertGt(bought, 0);
     }
@@ -557,6 +563,11 @@ contract ScoopFactoryForkTest is Test {
         (address token, address feeDistributor,,,) = factory.launch{value: 0.0005 ether}(params);
         assertEq(rewards.sourceCreatorId(feeDistributor), bytes32(0));
         assertTrue(factory.isScoopToken(token));
+
+        ScoopFactory.Launch memory rec = factory.getLaunch(token);
+        ScoopHolderRewards vault = ScoopHolderRewards(payable(rec.holderRewards));
+        assertEq(vault.feeDistributor(), feeDistributor);
+        assertEq(ScoopFeeDistributor(payable(feeDistributor)).holderRewards(), rec.holderRewards);
     }
 
     function _generateFees(address token) internal {

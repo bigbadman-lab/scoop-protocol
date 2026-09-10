@@ -6,6 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IScoopCreatorRewards} from "./interfaces/IScoopCreatorRewards.sol";
+import {IScoopHolderRewards} from "./interfaces/IScoopHolderRewards.sol";
 import {ScoopFeeMath} from "./libraries/ScoopFeeMath.sol";
 import {ScoopFeeTypes} from "./libraries/ScoopFeeTypes.sol";
 
@@ -137,7 +138,9 @@ contract ScoopFeeDistributor is ReentrancyGuard {
         }
 
         uint256 holdersTotal = s.baseHoldersAmount + s.extraHoldersAmount;
-        _sendETH(holderRewards, holdersTotal);
+        if (holdersTotal > 0) {
+            IScoopHolderRewards(holderRewards).depositETH{value: holdersTotal}();
+        }
 
         _sendETH(deployer, s.baseDeployerAmount + s.extraDeployerAmount);
         _sendETH(buybackVault, s.baseBuybackAmount);
@@ -176,7 +179,9 @@ contract ScoopFeeDistributor is ReentrancyGuard {
 
         uint256 holdersTotal = s.baseHoldersAmount + s.extraHoldersAmount;
         if (holdersTotal > 0) {
-            IERC20(token).safeTransfer(holderRewards, holdersTotal);
+            IERC20(token).forceApprove(holderRewards, holdersTotal);
+            IScoopHolderRewards(holderRewards).depositToken(token, holdersTotal);
+            IERC20(token).forceApprove(holderRewards, 0);
         }
 
         uint256 deployerTotal = s.baseDeployerAmount + s.extraDeployerAmount;

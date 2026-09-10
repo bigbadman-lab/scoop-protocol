@@ -29,7 +29,7 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
         RejectETHRecipient rejector = new RejectETHRecipient();
 
         ScoopTokenDeployer td = new ScoopTokenDeployer();
-        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"));
+        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"), makeAddr("holderRewardsPublisher"));
         ScoopQuoteRegistry qr = new ScoopQuoteRegistry(registryAuthority);
         ScoopPriceOracle po = new ScoopPriceOracle(oracleAuthority);
 
@@ -92,7 +92,7 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
         ReenterFactoryOnReceive reenter = new ReenterFactoryOnReceive();
 
         ScoopTokenDeployer td = new ScoopTokenDeployer();
-        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"));
+        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"), makeAddr("holderRewardsPublisher"));
         ScoopQuoteRegistry qr = new ScoopQuoteRegistry(registryAuthority);
         ScoopPriceOracle po = new ScoopPriceOracle(oracleAuthority);
         vm.prank(registryAuthority);
@@ -229,7 +229,7 @@ contract ScoopMaliciousRecipientTest is ScoopSecurityLocalBase {
 
     function test_blastRadius_buybackAndOperations_areFactoryImmutables() public {
         ScoopTokenDeployer td = new ScoopTokenDeployer();
-        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"));
+        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(makeAddr("pm"), makeAddr("holderRewardsPublisher"));
         ScoopQuoteRegistry qr = new ScoopQuoteRegistry(registryAuthority);
         ScoopPriceOracle po = new ScoopPriceOracle(oracleAuthority);
         vm.prank(registryAuthority);

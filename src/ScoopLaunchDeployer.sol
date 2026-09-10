@@ -4,24 +4,28 @@ pragma solidity ^0.8.26;
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
 import {ScoopFeeDistributor} from "./ScoopFeeDistributor.sol";
-import {ScoopHolderRewardsReceiver} from "./ScoopHolderRewardsReceiver.sol";
+import {ScoopHolderRewards} from "./ScoopHolderRewards.sol";
 import {ScoopLiquidityLocker} from "./ScoopLiquidityLocker.sol";
 import {ScoopFeeTypes} from "./libraries/ScoopFeeTypes.sol";
 
 /**
  * @title ScoopLaunchDeployer
  * @notice Deterministic CREATE2 deployment of per-launch fee modules and LP locker.
- * @dev Deploy order: HolderRewardsReceiver → FeeDistributor → LiquidityLocker.
- *      Source→creatorId registration is performed separately by ScoopFactory.
+ * @dev Deploy order: ScoopHolderRewards → FeeDistributor → initializeFeeDistributor → LiquidityLocker.
+ *      HolderRewards needs the distributor address and vice versa; feeDistributor is bound once
+ *      via `initializeFeeDistributor` (LaunchDeployer-only) after both CREATE2 deploys.
  */
 contract ScoopLaunchDeployer {
     error ZeroPositionManager();
+    error ZeroRootPublisher();
 
     bytes32 public constant HOLDER_DOMAIN = keccak256("SCOOP_HOLDER_REWARDS");
     bytes32 public constant DISTRIBUTOR_DOMAIN = keccak256("SCOOP_FEE_DISTRIBUTOR");
     bytes32 public constant LOCKER_DOMAIN = keccak256("SCOOP_LOCKER");
 
     address public immutable positionManager;
+    /// @notice Protocol-level Merkle root publisher for all launches from this deployer.
+    address public immutable rootPublisher;
 
     struct LaunchFeeConfig {
         address creatorRewards;
@@ -41,17 +45,23 @@ contract ScoopLaunchDeployer {
         bytes32 baseSalt
     );
 
-    constructor(address positionManager_) {
+    constructor(address positionManager_, address rootPublisher_) {
         if (positionManager_ == address(0)) revert ZeroPositionManager();
+        if (rootPublisher_ == address(0)) revert ZeroRootPublisher();
         positionManager = positionManager_;
+        rootPublisher = rootPublisher_;
     }
 
-    /// @notice Deploy immutable per-launch holder sink, fee distributor, then locker via CREATE2.
+    /// @notice Deploy immutable per-launch holder vault, fee distributor, then locker via CREATE2.
     function deployLaunch(LaunchFeeConfig calldata config, bytes32 baseSalt)
         external
         returns (address feeDistributor, address liquidityLocker, address holderRewards)
     {
-        holderRewards = Create2.deploy(0, _holderSalt(baseSalt), type(ScoopHolderRewardsReceiver).creationCode);
+        holderRewards = Create2.deploy(
+            0,
+            _holderSalt(baseSalt),
+            abi.encodePacked(type(ScoopHolderRewards).creationCode, abi.encode(rootPublisher, address(this)))
+        );
 
         bytes memory distributorCtorArgs = abi.encode(
             config.creatorRewards,
@@ -68,6 +78,8 @@ contract ScoopLaunchDeployer {
             0, _distributorSalt(baseSalt), abi.encodePacked(type(ScoopFeeDistributor).creationCode, distributorCtorArgs)
         );
 
+        ScoopHolderRewards(payable(holderRewards)).initializeFeeDistributor(feeDistributor);
+
         liquidityLocker = Create2.deploy(0, _lockerSalt(baseSalt), _lockerInitCode(feeDistributor));
 
         emit LaunchDeployed(msg.sender, feeDistributor, liquidityLocker, holderRewards, baseSalt);
@@ -80,7 +92,11 @@ contract ScoopLaunchDeployer {
         returns (address predictedFeeDistributor, address predictedLiquidityLocker, address predictedHolderRewards)
     {
         predictedHolderRewards = Create2.computeAddress(
-            _holderSalt(baseSalt), keccak256(type(ScoopHolderRewardsReceiver).creationCode), address(this)
+            _holderSalt(baseSalt),
+            keccak256(
+                abi.encodePacked(type(ScoopHolderRewards).creationCode, abi.encode(rootPublisher, address(this)))
+            ),
+            address(this)
         );
 
         bytes memory distributorCtorArgs = abi.encode(

@@ -52,7 +52,7 @@ contract ScoopPermissionlessDeployerAttackTest is Test {
         factoryPlaceholder = makeAddr("factory");
 
         tokenDeployer = new ScoopTokenDeployer();
-        launchDeployer = new ScoopLaunchDeployer(positionManager);
+        launchDeployer = new ScoopLaunchDeployer(positionManager, makeAddr("holderRewardsPublisher"));
     }
 
     function _launchSalt(address deployer, bytes32 userSalt) internal pure returns (bytes32) {
@@ -274,7 +274,7 @@ contract ScoopPermissionlessDeployerAttackTest is Test {
 
         ScoopCreatorRegistry reg = new ScoopCreatorRegistry(authority);
         ScoopTokenDeployer td = new ScoopTokenDeployer();
-        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(positionManager_);
+        ScoopLaunchDeployer ld = new ScoopLaunchDeployer(positionManager_, makeAddr("holderRewardsPublisher"));
         ScoopQuoteRegistry qr = new ScoopQuoteRegistry(quoteAuth);
         ScoopPriceOracle po = new ScoopPriceOracle(oracleAuth);
 
