@@ -7,7 +7,14 @@ import {console2} from "forge-std/console2.sol";
 import {ScoopQuoteRegistry} from "../../src/ScoopQuoteRegistry.sol";
 import {ScoopPriceOracle} from "../../src/ScoopPriceOracle.sol";
 
+/**
+ * @notice HISTORICAL / forensic only — stock catalogue configure rehearsal on legacy SCOOP V1.
+ * @dev Pins historical QR/PO at a historical fork block. NOT the canonical Phase A production stack.
+ *      Production stock configuration uses script/configure_remaining_stock_catalogue.py with
+ *      SCOOP_QUOTE_REGISTRY / SCOOP_PRICE_ORACLE env targets.
+ */
 contract ScoopConfigureStockCatalogue20ForkTest is Test {
+    // HISTORICAL SCOOP V1 — NOT canonical Phase A production.
     ScoopQuoteRegistry constant REGISTRY = ScoopQuoteRegistry(0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD);
 
     ScoopPriceOracle constant ORACLE = ScoopPriceOracle(0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12);

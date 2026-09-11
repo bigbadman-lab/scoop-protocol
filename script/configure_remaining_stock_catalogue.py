@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Guarded, resumable production runner for remaining SCOOP stock quotes.
+"""Guarded, resumable production runner for SCOOP stock quotes (canonical stack).
 
 Default mode is DRY RUN / PREFLIGHT ONLY (no transactions).
 
-Broadcast (DO NOT run unless explicitly intended):
+Dry-run (full catalogue or selected symbols):
   ROBINHOOD_RPC_URL=... AUTHORITY_PRIVATE_KEY=... \\
-    python3 script/configure_remaining_stock_catalogue.py --broadcast
+    SCOOP_QUOTE_REGISTRY=... SCOOP_PRICE_ORACLE=... \\
+    python3 script/configure_remaining_stock_catalogue.py [--symbols AAPL,AMD]
 
-Dry-run against live mainnet:
+Broadcast (explicit symbols REQUIRED — DO NOT run unless intended):
   ROBINHOOD_RPC_URL=... AUTHORITY_PRIVATE_KEY=... \\
-    python3 script/configure_remaining_stock_catalogue.py
+    SCOOP_QUOTE_REGISTRY=... SCOOP_PRICE_ORACLE=... \\
+    python3 script/configure_remaining_stock_catalogue.py --symbols AAPL,AMD --broadcast
 """
 
 from __future__ import annotations
@@ -27,16 +29,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-# ── Canonical production constants (frozen) ──────────────────────────────────
+# ── Canonical production constants (non-deployment identities) ───────────────
 
 CHAIN_ID = 4663
-QUOTE_REGISTRY = "0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD"
-PRICE_ORACLE = "0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12"
 AUTHORITY = "0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7"
 
 USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
 USDG_USD_FEED = "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2"
 ETH_USD_FEED = "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9"
+ETH = "0x0000000000000000000000000000000000000000"
 ETH_MAX_AGE = 86_400
 USDG_MAX_AGE = 86_400
 
@@ -44,11 +45,8 @@ STOCK_MAX_AGE = 345_600
 STOCK_QUOTE_TYPE = 2  # QuoteType.Stock
 STOCK_FEED_DECIMALS = 8
 
-CANARY_SYMBOLS = ("AAPL", "AMD")
-
 # Safety floor for authority ETH before any write.
-# 18 remaining × 2 txs × ~150k gas ≈ ~5.4M gas; Robinhood fees are low.
-# Floor is intentionally conservative and explicit — not silent.
+# Intentionally conservative — do not lower merely to enable broadcast.
 MIN_AUTHORITY_ETH_WEI = 10**16  # 0.01 ETH
 
 DEFAULT_MANIFEST = Path("audit/final-production-stock-manifest-20.json")
@@ -66,6 +64,14 @@ class StockState(str, Enum):
     ORACLE_ONLY = "oracle_only"  # State B — TX2 only
     COMPLETE = "complete"  # State C — skip
     INVALID = "invalid"
+
+
+@dataclass(frozen=True)
+class ScoopTargets:
+    """Runtime QR/PO from SCOOP_QUOTE_REGISTRY / SCOOP_PRICE_ORACLE."""
+
+    quote_registry: str
+    price_oracle: str
 
 
 @dataclass
@@ -116,6 +122,8 @@ class StockLogEntry:
 class ExecutionLog:
     chainId: int = CHAIN_ID
     authority: str = AUTHORITY
+    quoteRegistry: Optional[str] = None
+    priceOracle: Optional[str] = None
     startedAt: Optional[str] = None
     updatedAt: Optional[str] = None
     mode: str = "DRY_RUN"
@@ -155,6 +163,16 @@ def atomic_write_json(path: Path, data: Any) -> None:
         raise
 
 
+def load_scoop_targets_from_env() -> ScoopTargets:
+    qr = os.environ.get("SCOOP_QUOTE_REGISTRY", "").strip()
+    po = os.environ.get("SCOOP_PRICE_ORACLE", "").strip()
+    if not qr:
+        raise Abort("SCOOP_QUOTE_REGISTRY required")
+    if not po:
+        raise Abort("SCOOP_PRICE_ORACLE required")
+    return ScoopTargets(quote_registry=_norm(qr), price_oracle=_norm(po))
+
+
 def load_manifest(path: Path) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text())
     if not isinstance(raw, list):
@@ -163,7 +181,7 @@ def load_manifest(path: Path) -> list[dict[str, Any]]:
         raise Abort(f"manifest count must be 20, got {len(raw)}")
     symbols = []
     for i, entry in enumerate(raw):
-        for key in ("symbol", "token", "feed", "feedDecimals", "maxAge", "quoteType", "tx1", "tx2"):
+        for key in ("symbol", "token", "feed", "feedDecimals", "maxAge", "quoteType"):
             if key not in entry:
                 raise Abort(f"manifest[{i}] missing {key}")
         if entry["maxAge"] != STOCK_MAX_AGE:
@@ -172,25 +190,46 @@ def load_manifest(path: Path) -> list[dict[str, Any]]:
             raise Abort(f"{entry['symbol']}: quoteType must be {STOCK_QUOTE_TYPE}")
         if entry["feedDecimals"] != STOCK_FEED_DECIMALS:
             raise Abort(f"{entry['symbol']}: feedDecimals must be {STOCK_FEED_DECIMALS}")
-        if not isinstance(entry["tx1"], dict) or "calldata" not in entry["tx1"]:
-            raise Abort(f"{entry['symbol']}: tx1.calldata required")
-        if not isinstance(entry["tx2"], dict) or "calldata" not in entry["tx2"]:
-            raise Abort(f"{entry['symbol']}: tx2.calldata required")
-        if not _checksum_eq(entry["tx1"]["target"], PRICE_ORACLE):
-            raise Abort(f"{entry['symbol']}: tx1.target mismatch")
-        if not _checksum_eq(entry["tx2"]["target"], QUOTE_REGISTRY):
-            raise Abort(f"{entry['symbol']}: tx2.target mismatch")
+        # Deployment targets must not control production routing.
+        if "tx1" in entry or "tx2" in entry:
+            raise Abort(
+                f"{entry['symbol']}: manifest must not include tx1/tx2 deployment targets; "
+                "transactions are constructed from SCOOP_QUOTE_REGISTRY / SCOOP_PRICE_ORACLE"
+            )
+        _norm(entry["token"])
+        _norm(entry["feed"])
         symbols.append(entry["symbol"])
     if len(set(symbols)) != 20:
         raise Abort("manifest symbols must be unique")
-    for canary in CANARY_SYMBOLS:
-        if canary not in symbols:
-            raise Abort(f"manifest missing canary {canary}")
     return raw
 
 
+def select_symbols(manifest: list[dict[str, Any]], symbols_csv: Optional[str]) -> list[dict[str, Any]]:
+    """Return catalogue entries for selected symbols in canonical catalogue order."""
+    if symbols_csv is None or symbols_csv.strip() == "":
+        raise Abort("symbol selection required (empty)")
+    raw_parts = [p.strip() for p in symbols_csv.split(",") if p.strip() != ""]
+    if not raw_parts:
+        raise Abort("symbol selection required (empty)")
+    seen: set[str] = set()
+    ordered_unique: list[str] = []
+    for sym in raw_parts:
+        if sym in seen:
+            raise Abort(f"duplicate symbol in selection: {sym}")
+        seen.add(sym)
+        ordered_unique.append(sym)
+
+    by_symbol = {e["symbol"]: e for e in manifest}
+    for sym in ordered_unique:
+        if sym not in by_symbol:
+            raise Abort(f"unknown symbol (not in frozen 20-stock catalogue): {sym}")
+
+    # Preserve catalogue order, not CLI order.
+    selected = [e for e in manifest if e["symbol"] in seen]
+    return selected
+
+
 def build_configure_feed_calldata(token: str, feed: str, max_age: int = STOCK_MAX_AGE) -> str:
-    """Rebuild TX1 calldata via cast; must match frozen manifest exactly."""
     out = subprocess.check_output(
         [
             "cast",
@@ -223,19 +262,6 @@ def build_register_quote_calldata(token: str, quote_type: int = STOCK_QUOTE_TYPE
     return out.lower()
 
 
-def assert_calldata_matches_manifest(entry: dict[str, Any]) -> None:
-    tx1 = build_configure_feed_calldata(entry["token"], entry["feed"], entry["maxAge"])
-    tx2 = build_register_quote_calldata(entry["token"], entry["quoteType"])
-    if tx1 != entry["tx1"]["calldata"].lower():
-        raise Abort(
-            f"{entry['symbol']}: TX1 calldata mismatch\n  local={tx1}\n  manifest={entry['tx1']['calldata'].lower()}"
-        )
-    if tx2 != entry["tx2"]["calldata"].lower():
-        raise Abort(
-            f"{entry['symbol']}: TX2 calldata mismatch\n  local={tx2}\n  manifest={entry['tx2']['calldata'].lower()}"
-        )
-
-
 # ── RPC via cast ─────────────────────────────────────────────────────────────
 
 
@@ -246,7 +272,6 @@ class CastRpc:
         self.rpc_url = rpc_url
 
     def _run(self, args: list[str], *, sensitive: bool = False) -> str:
-        # Never include private keys in exception messages.
         try:
             p = subprocess.run(args, text=True, capture_output=True, check=False)
         except Exception as e:
@@ -261,6 +286,10 @@ class CastRpc:
     def call(self, address: str, sig: str, *args: str) -> str:
         cmd = ["cast", "call", address, sig, *args, "--rpc-url", self.rpc_url]
         return self._run(cmd)
+
+    def codesize(self, address: str) -> int:
+        out = self._run(["cast", "codesize", address, "--rpc-url", self.rpc_url])
+        return int(out.split()[0], 0)
 
     def chain_id(self) -> int:
         return int(self._run(["cast", "chain-id", "--rpc-url", self.rpc_url]))
@@ -283,7 +312,6 @@ class CastRpc:
         private_key: str,
         from_addr: str,
     ) -> dict[str, Any]:
-        # cast send prints tx hash; receipt via cast receipt
         cmd = [
             "cast",
             "send",
@@ -301,13 +329,11 @@ class CastRpc:
         try:
             receipt = json.loads(raw)
         except json.JSONDecodeError:
-            # Fallback: treat stdout as hash then fetch receipt
             tx_hash = raw.splitlines()[-1].strip()
             if not tx_hash.startswith("0x"):
                 raise Abort("cast send did not return JSON receipt or tx hash")
             receipt = self.wait_receipt(tx_hash)
             return receipt
-        # Some cast versions return receipt JSON directly
         if "transactionHash" in receipt or "transaction_hash" in receipt:
             return receipt
         if "hash" in receipt:
@@ -332,7 +358,6 @@ class CastRpc:
 
 
 def derive_signer_address(private_key: str) -> str:
-    # cast wallet address never echoes the key back in normal success output
     p = subprocess.run(
         ["cast", "wallet", "address", "--private-key", private_key],
         text=True,
@@ -357,7 +382,6 @@ def parse_bool(out: str) -> bool:
 
 def parse_uint(out: str) -> int:
     line = out.splitlines()[0].strip()
-    # cast may append scientific notation comments
     token = line.split()[0]
     return int(token, 0)
 
@@ -370,13 +394,9 @@ def parse_address(out: str) -> str:
 
 
 def parse_feed_config(out: str) -> FeedConfig:
-    """Parse cast tuple output for getFeedConfig."""
-    # Examples:
-    # (0xabc..., 345600 [3.456e5], 8, true)
     text = out.strip()
     if text.startswith("(") and text.endswith(")"):
         text = text[1:-1]
-    # Split carefully on commas not inside brackets — simple approach for our shape
     parts = []
     cur = []
     depth = 0
@@ -404,37 +424,75 @@ def parse_feed_config(out: str) -> FeedConfig:
 # ── On-chain reads ───────────────────────────────────────────────────────────
 
 
-def read_oracle_configured(rpc: CastRpc, asset: str) -> bool:
-    return parse_bool(rpc.call(PRICE_ORACLE, "isConfigured(address)(bool)", asset))
+def read_oracle_configured(rpc: CastRpc, targets: ScoopTargets, asset: str) -> bool:
+    return parse_bool(rpc.call(targets.price_oracle, "isConfigured(address)(bool)", asset))
 
 
-def read_oracle_enabled(rpc: CastRpc, asset: str) -> bool:
-    return parse_bool(rpc.call(PRICE_ORACLE, "isEnabled(address)(bool)", asset))
+def read_oracle_enabled(rpc: CastRpc, targets: ScoopTargets, asset: str) -> bool:
+    return parse_bool(rpc.call(targets.price_oracle, "isEnabled(address)(bool)", asset))
 
 
-def read_feed_config(rpc: CastRpc, asset: str) -> FeedConfig:
-    out = rpc.call(PRICE_ORACLE, "getFeedConfig(address)((address,uint48,uint8,bool))", asset)
+def read_feed_config(rpc: CastRpc, targets: ScoopTargets, asset: str) -> FeedConfig:
+    out = rpc.call(
+        targets.price_oracle, "getFeedConfig(address)((address,uint48,uint8,bool))", asset
+    )
     return parse_feed_config(out)
 
 
-def read_price_usd(rpc: CastRpc, asset: str) -> int:
-    return parse_uint(rpc.call(PRICE_ORACLE, "getPriceUsd(address)(uint256)", asset))
+def read_price_usd(rpc: CastRpc, targets: ScoopTargets, asset: str) -> int:
+    return parse_uint(rpc.call(targets.price_oracle, "getPriceUsd(address)(uint256)", asset))
 
 
-def read_registered(rpc: CastRpc, asset: str) -> bool:
-    return parse_bool(rpc.call(QUOTE_REGISTRY, "isRegistered(address)(bool)", asset))
+def read_registered(rpc: CastRpc, targets: ScoopTargets, asset: str) -> bool:
+    return parse_bool(rpc.call(targets.quote_registry, "isRegistered(address)(bool)", asset))
 
 
-def read_quote_enabled(rpc: CastRpc, asset: str) -> bool:
-    return parse_bool(rpc.call(QUOTE_REGISTRY, "isEnabled(address)(bool)", asset))
+def read_quote_enabled(rpc: CastRpc, targets: ScoopTargets, asset: str) -> bool:
+    return parse_bool(rpc.call(targets.quote_registry, "isEnabled(address)(bool)", asset))
 
 
-def read_quote_type(rpc: CastRpc, asset: str) -> int:
-    return parse_uint(rpc.call(QUOTE_REGISTRY, "quoteType(address)(uint8)", asset))
+def read_quote_type(rpc: CastRpc, targets: ScoopTargets, asset: str) -> int:
+    return parse_uint(rpc.call(targets.quote_registry, "quoteType(address)(uint8)", asset))
 
 
-def read_quote_count(rpc: CastRpc) -> int:
-    return parse_uint(rpc.call(QUOTE_REGISTRY, "registeredQuoteCount()(uint256)"))
+def read_quote_count(rpc: CastRpc, targets: ScoopTargets) -> int:
+    return parse_uint(rpc.call(targets.quote_registry, "registeredQuoteCount()(uint256)"))
+
+
+def read_registered_quote_at(rpc: CastRpc, targets: ScoopTargets, index: int) -> str:
+    return parse_address(
+        rpc.call(targets.quote_registry, "registeredQuoteAt(uint256)(address)", str(index))
+    )
+
+
+def enumerate_registered_quotes(rpc: CastRpc, targets: ScoopTargets) -> list[str]:
+    count = read_quote_count(rpc, targets)
+    return [read_registered_quote_at(rpc, targets, i) for i in range(count)]
+
+
+def allowed_quote_assets(manifest: list[dict[str, Any]]) -> set[str]:
+    allowed = {_norm(ETH), _norm(USDG)}
+    for e in manifest:
+        allowed.add(_norm(e["token"]))
+    return allowed
+
+
+def assert_registered_set_canonical(rpc: CastRpc, targets: ScoopTargets, manifest: list[dict[str, Any]]) -> None:
+    """Every registered asset must be ETH, USDG, or a catalogue stock token."""
+    allowed = allowed_quote_assets(manifest)
+    registered = enumerate_registered_quotes(rpc, targets)
+    unexpected = [a for a in registered if _norm(a) not in allowed]
+    if unexpected:
+        raise Abort(f"unexpected registered quote asset(s): {unexpected}")
+    # Count must match enumeration length (sanity).
+    if len(registered) != read_quote_count(rpc, targets):
+        raise Abort("registeredQuoteCount does not match enumeration")
+
+
+def expected_quote_count_from_states(states: list[StockLiveState]) -> int:
+    """Canonical intended count = ETH + USDG + COMPLETE stocks."""
+    complete_n = sum(1 for s in states if s.classification == StockState.COMPLETE)
+    return 2 + complete_n
 
 
 def check_feed_round(
@@ -460,12 +518,16 @@ def check_feed_round(
 
 
 def assert_feed_fresh(rpc: CastRpc, feed: str, max_age: int = STOCK_MAX_AGE) -> None:
+    if rpc.codesize(feed) == 0:
+        raise Abort(f"feed {feed}: no bytecode")
+    dec = parse_uint(rpc.call(feed, "decimals()(uint8)"))
+    if dec != STOCK_FEED_DECIMALS:
+        raise Abort(f"feed {feed}: decimals must be {STOCK_FEED_DECIMALS}, got {dec}")
     out = rpc.call(
         feed,
         "latestRoundData()(uint80,int256,uint256,uint256,uint80)",
     )
     lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
-    # cast may print one value per line
     vals = []
     for ln in lines:
         token = ln.split()[0]
@@ -474,7 +536,6 @@ def assert_feed_fresh(rpc: CastRpc, feed: str, max_age: int = STOCK_MAX_AGE) -> 
         except ValueError:
             continue
     if len(vals) < 5:
-        # try single-line tuple
         text = out.strip()
         if text.startswith("(") and ")" in text:
             inner = text[1 : text.index(")")]
@@ -496,40 +557,42 @@ def assert_feed_fresh(rpc: CastRpc, feed: str, max_age: int = STOCK_MAX_AGE) -> 
         feed=feed,
     )
 
-def assert_eth_healthy(rpc: CastRpc) -> None:
-    # native ETH quote is address(0)
-    zero = "0x0000000000000000000000000000000000000000"
-    if not read_registered(rpc, zero):
+
+def assert_eth_healthy(rpc: CastRpc, targets: ScoopTargets) -> None:
+    zero = ETH
+    if not read_registered(rpc, targets, zero):
         raise Abort("ETH: not registered")
-    if not read_quote_enabled(rpc, zero):
+    if not read_quote_enabled(rpc, targets, zero):
         raise Abort("ETH: not enabled")
-    if not read_oracle_configured(rpc, zero):
+    if read_quote_type(rpc, targets, zero) != 0:
+        raise Abort("ETH: quoteType must be Native (0)")
+    if not read_oracle_configured(rpc, targets, zero):
         raise Abort("ETH: oracle not configured")
-    if not read_oracle_enabled(rpc, zero):
+    if not read_oracle_enabled(rpc, targets, zero):
         raise Abort("ETH: oracle not enabled")
-    cfg = read_feed_config(rpc, zero)
+    cfg = read_feed_config(rpc, targets, zero)
     if not _checksum_eq(cfg.feed, ETH_USD_FEED):
         raise Abort("ETH: feed mismatch")
     if cfg.max_age != ETH_MAX_AGE:
         raise Abort(f"ETH: maxAge mismatch ({cfg.max_age})")
     if not cfg.enabled:
         raise Abort("ETH: feed disabled")
-    if read_price_usd(rpc, zero) <= 0:
+    if read_price_usd(rpc, targets, zero) <= 0:
         raise Abort("ETH: getPriceUsd <= 0")
 
 
-def assert_usdg_healthy(rpc: CastRpc) -> None:
-    if not read_registered(rpc, USDG):
+def assert_usdg_healthy(rpc: CastRpc, targets: ScoopTargets) -> None:
+    if not read_registered(rpc, targets, USDG):
         raise Abort("USDG: not registered")
-    if not read_quote_enabled(rpc, USDG):
+    if not read_quote_enabled(rpc, targets, USDG):
         raise Abort("USDG: not enabled")
-    if read_quote_type(rpc, USDG) != 1:  # QuoteType.Scoop
+    if read_quote_type(rpc, targets, USDG) != 1:
         raise Abort("USDG: quoteType must be Scoop (1)")
-    if not read_oracle_configured(rpc, USDG):
+    if not read_oracle_configured(rpc, targets, USDG):
         raise Abort("USDG: oracle not configured")
-    if not read_oracle_enabled(rpc, USDG):
+    if not read_oracle_enabled(rpc, targets, USDG):
         raise Abort("USDG: oracle not enabled")
-    cfg = read_feed_config(rpc, USDG)
+    cfg = read_feed_config(rpc, targets, USDG)
     if not _checksum_eq(cfg.feed, USDG_USD_FEED):
         raise Abort("USDG: feed mismatch")
     if cfg.max_age != USDG_MAX_AGE:
@@ -538,7 +601,7 @@ def assert_usdg_healthy(rpc: CastRpc) -> None:
         raise Abort("USDG: feedDecimals must be 8")
     if not cfg.enabled:
         raise Abort("USDG: feed disabled")
-    if read_price_usd(rpc, USDG) <= 0:
+    if read_price_usd(rpc, targets, USDG) <= 0:
         raise Abort("USDG: getPriceUsd <= 0")
 
 
@@ -573,7 +636,6 @@ def classify_from_reads(
     quote_enabled: bool = False,
     quote_type: Optional[int] = None,
 ) -> StockLiveState:
-    """Pure state-machine classification (unit-testable without RPC)."""
     token = entry["token"]
     symbol = entry["symbol"]
 
@@ -679,10 +741,10 @@ def classify_from_reads(
     )
 
 
-def classify_stock(rpc: CastRpc, entry: dict[str, Any]) -> StockLiveState:
+def classify_stock(rpc: CastRpc, targets: ScoopTargets, entry: dict[str, Any]) -> StockLiveState:
     token = entry["token"]
-    configured = read_oracle_configured(rpc, token)
-    registered = read_registered(rpc, token)
+    configured = read_oracle_configured(rpc, targets, token)
+    registered = read_registered(rpc, targets, token)
 
     feed_config = None
     price = None
@@ -691,16 +753,16 @@ def classify_stock(rpc: CastRpc, entry: dict[str, Any]) -> StockLiveState:
     quote_type = None
 
     if configured:
-        oracle_enabled = read_oracle_enabled(rpc, token)
-        feed_config = read_feed_config(rpc, token)
+        oracle_enabled = read_oracle_enabled(rpc, targets, token)
+        feed_config = read_feed_config(rpc, targets, token)
         try:
-            price = read_price_usd(rpc, token)
+            price = read_price_usd(rpc, targets, token)
         except Abort:
             price = None
 
     if registered:
-        quote_enabled = read_quote_enabled(rpc, token)
-        quote_type = read_quote_type(rpc, token)
+        quote_enabled = read_quote_enabled(rpc, targets, token)
+        quote_type = read_quote_type(rpc, targets, token)
 
     return classify_from_reads(
         entry,
@@ -714,13 +776,13 @@ def classify_stock(rpc: CastRpc, entry: dict[str, Any]) -> StockLiveState:
     )
 
 
-def verify_oracle_after_tx1(rpc: CastRpc, entry: dict[str, Any]) -> None:
+def verify_oracle_after_tx1(rpc: CastRpc, targets: ScoopTargets, entry: dict[str, Any]) -> None:
     token = entry["token"]
-    if not read_oracle_configured(rpc, token):
+    if not read_oracle_configured(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX1 isConfigured=false")
-    if not read_oracle_enabled(rpc, token):
+    if not read_oracle_enabled(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX1 isEnabled=false")
-    cfg = read_feed_config(rpc, token)
+    cfg = read_feed_config(rpc, targets, token)
     if not _checksum_eq(cfg.feed, entry["feed"]):
         raise Abort(f"{entry['symbol']}: after TX1 feed mismatch")
     if cfg.max_age != STOCK_MAX_AGE:
@@ -729,28 +791,28 @@ def verify_oracle_after_tx1(rpc: CastRpc, entry: dict[str, Any]) -> None:
         raise Abort(f"{entry['symbol']}: after TX1 feedDecimals mismatch")
     if not cfg.enabled:
         raise Abort(f"{entry['symbol']}: after TX1 feed disabled")
-    if read_price_usd(rpc, token) <= 0:
+    if read_price_usd(rpc, targets, token) <= 0:
         raise Abort(f"{entry['symbol']}: after TX1 getPriceUsd <= 0")
-    if read_registered(rpc, token):
+    if read_registered(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX1 unexpectedly registered")
 
 
-def verify_after_tx2(rpc: CastRpc, entry: dict[str, Any]) -> None:
+def verify_after_tx2(rpc: CastRpc, targets: ScoopTargets, entry: dict[str, Any]) -> None:
     token = entry["token"]
-    if not read_registered(rpc, token):
+    if not read_registered(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX2 not registered")
-    if not read_quote_enabled(rpc, token):
+    if not read_quote_enabled(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX2 not enabled")
-    if read_quote_type(rpc, token) != STOCK_QUOTE_TYPE:
+    if read_quote_type(rpc, targets, token) != STOCK_QUOTE_TYPE:
         raise Abort(f"{entry['symbol']}: after TX2 quoteType != Stock")
-    if not read_oracle_configured(rpc, token) or not read_oracle_enabled(rpc, token):
+    if not read_oracle_configured(rpc, targets, token) or not read_oracle_enabled(rpc, targets, token):
         raise Abort(f"{entry['symbol']}: after TX2 oracle not configured/enabled")
-    cfg = read_feed_config(rpc, token)
-    if not oracle_matches_manifest(cfg, entry, read_price_usd(rpc, token)):
+    cfg = read_feed_config(rpc, targets, token)
+    if not oracle_matches_manifest(cfg, entry, read_price_usd(rpc, targets, token)):
         raise Abort(f"{entry['symbol']}: after TX2 oracle readback mismatch")
 
 
-def receipt_ok(receipt: dict[str, Any]) -> tuple[str, int, int]:
+def receipt_ok(receipt: dict[str, Any], *, expected_to: str, expected_from: str) -> tuple[str, int, int]:
     status = receipt.get("status", receipt.get("Status"))
     if isinstance(status, str):
         status_i = int(status, 0)
@@ -761,6 +823,12 @@ def receipt_ok(receipt: dict[str, Any]) -> tuple[str, int, int]:
     tx_hash = receipt.get("transactionHash") or receipt.get("transaction_hash") or receipt.get("hash")
     if not tx_hash:
         raise Abort("receipt missing transactionHash")
+    to = receipt.get("to") or receipt.get("To")
+    frm = receipt.get("from") or receipt.get("From")
+    if to is not None and not _checksum_eq(str(to), expected_to):
+        raise Abort(f"receipt to mismatch: got {to}, expected {expected_to}")
+    if frm is not None and not _checksum_eq(str(frm), expected_from):
+        raise Abort(f"receipt from mismatch: got {frm}, expected {expected_from}")
     block = receipt.get("blockNumber") or receipt.get("block_number")
     gas = receipt.get("gasUsed") or receipt.get("gas_used")
     if isinstance(block, str):
@@ -780,6 +848,8 @@ def load_log(path: Path) -> ExecutionLog:
     return ExecutionLog(
         chainId=data.get("chainId", CHAIN_ID),
         authority=data.get("authority", AUTHORITY),
+        quoteRegistry=data.get("quoteRegistry"),
+        priceOracle=data.get("priceOracle"),
         startedAt=data.get("startedAt"),
         updatedAt=data.get("updatedAt"),
         mode=data.get("mode", "DRY_RUN"),
@@ -801,7 +871,6 @@ def upsert_stock_log(log: ExecutionLog, entry: StockLogEntry) -> None:
 
 def save_log(path: Path, log: ExecutionLog) -> None:
     payload = asdict(log)
-    # Never persist private-key material. Tx hashes are 32-byte hex and are allowed.
     blob = json.dumps(payload)
     if "AUTHORITY_PRIVATE_KEY" in blob:
         raise Abort("refusing to write log that appears to contain secrets")
@@ -814,39 +883,53 @@ def save_log(path: Path, log: ExecutionLog) -> None:
 # ── Global preflight ─────────────────────────────────────────────────────────
 
 
+def validate_targets(rpc: CastRpc, targets: ScoopTargets) -> None:
+    if _norm(targets.quote_registry) == "0x0000000000000000000000000000000000000000":
+        raise Abort("SCOOP_QUOTE_REGISTRY is zero")
+    if _norm(targets.price_oracle) == "0x0000000000000000000000000000000000000000":
+        raise Abort("SCOOP_PRICE_ORACLE is zero")
+    if rpc.codesize(targets.quote_registry) == 0:
+        raise Abort(f"QuoteRegistry has no bytecode: {targets.quote_registry}")
+    if rpc.codesize(targets.price_oracle) == 0:
+        raise Abort(f"PriceOracle has no bytecode: {targets.price_oracle}")
+    reg_auth = parse_address(rpc.call(targets.quote_registry, "registryAuthority()(address)"))
+    ora_auth = parse_address(rpc.call(targets.price_oracle, "oracleAuthority()(address)"))
+    if not _checksum_eq(reg_auth, AUTHORITY):
+        raise Abort("registryAuthority mismatch")
+    if not _checksum_eq(ora_auth, AUTHORITY):
+        raise Abort("oracleAuthority mismatch")
+
+
 def global_preflight(
     rpc: CastRpc,
-    manifest: list[dict[str, Any]],
+    targets: ScoopTargets,
+    full_manifest: list[dict[str, Any]],
     signer: str,
     *,
     require_balance: bool,
 ) -> None:
     if rpc.chain_id() != CHAIN_ID:
         raise Abort(f"wrong chainId: expected {CHAIN_ID}")
-    reg_auth = parse_address(rpc.call(QUOTE_REGISTRY, "registryAuthority()(address)"))
-    ora_auth = parse_address(rpc.call(PRICE_ORACLE, "oracleAuthority()(address)"))
-    if not _checksum_eq(reg_auth, AUTHORITY):
-        raise Abort("registryAuthority mismatch")
-    if not _checksum_eq(ora_auth, AUTHORITY):
-        raise Abort("oracleAuthority mismatch")
+    validate_targets(rpc, targets)
     if not _checksum_eq(signer, AUTHORITY):
         raise Abort("signer is not production authority — abort before any transaction")
 
-    for entry in manifest:
-        assert_calldata_matches_manifest(entry)
+    assert_eth_healthy(rpc, targets)
+    assert_usdg_healthy(rpc, targets)
+    assert_registered_set_canonical(rpc, targets, full_manifest)
 
-    assert_eth_healthy(rpc)
-    assert_usdg_healthy(rpc)
-
-    by_symbol = {e["symbol"]: e for e in manifest}
-    for canary in CANARY_SYMBOLS:
-        st = classify_stock(rpc, by_symbol[canary])
-        if st.classification != StockState.COMPLETE:
-            raise Abort(f"canary {canary} not fully live matching manifest ({st.classification}: {st.note})")
-
-    count = read_quote_count(rpc)
-    if count < 4:
-        raise Abort(f"registeredQuoteCount expected >= 4 (ETH+USDG+AAPL+AMD), got {count}")
+    # Count must equal ETH+USDG+COMPLETE stocks derived from live classification.
+    full_states = [classify_stock(rpc, targets, e) for e in full_manifest]
+    for st in full_states:
+        if st.classification == StockState.INVALID:
+            raise Abort(f"{st.symbol}: invalid live state — {st.note}")
+    expected = expected_quote_count_from_states(full_states)
+    actual = read_quote_count(rpc, targets)
+    if actual != expected:
+        raise Abort(
+            f"registeredQuoteCount mismatch: got {actual}, expected {expected} "
+            f"(ETH+USDG+{expected - 2} COMPLETE stocks)"
+        )
 
     if require_balance:
         bal = rpc.balance_wei(AUTHORITY)
@@ -857,16 +940,26 @@ def global_preflight(
             )
 
 
-def final_verification(rpc: CastRpc, manifest: list[dict[str, Any]]) -> None:
-    assert_eth_healthy(rpc)
-    assert_usdg_healthy(rpc)
-    for entry in manifest:
-        st = classify_stock(rpc, entry)
+def final_verification(
+    rpc: CastRpc,
+    targets: ScoopTargets,
+    full_manifest: list[dict[str, Any]],
+    selected: list[dict[str, Any]],
+) -> None:
+    assert_eth_healthy(rpc, targets)
+    assert_usdg_healthy(rpc, targets)
+    assert_registered_set_canonical(rpc, targets, full_manifest)
+
+    for entry in selected:
+        st = classify_stock(rpc, targets, entry)
         if st.classification != StockState.COMPLETE:
             raise Abort(f"final verification failed for {entry['symbol']}: {st.classification} {st.note}")
-    count = read_quote_count(rpc)
-    if count != 22:
-        raise Abort(f"final registeredQuoteCount expected 22, got {count}")
+
+    full_states = [classify_stock(rpc, targets, e) for e in full_manifest]
+    expected = expected_quote_count_from_states(full_states)
+    actual = read_quote_count(rpc, targets)
+    if actual != expected:
+        raise Abort(f"final registeredQuoteCount expected {expected}, got {actual}")
 
 
 # ── Planning / printing ──────────────────────────────────────────────────────
@@ -885,18 +978,27 @@ def plan_from_states(states: list[StockLiveState]) -> dict[str, Any]:
     }
 
 
-def print_dry_run(signer: str, plan: dict[str, Any], *, mode: str) -> None:
+def print_dry_run(
+    signer: str,
+    targets: ScoopTargets,
+    plan: dict[str, Any],
+    *,
+    mode: str,
+    selected_symbols: list[str],
+) -> None:
     print("SCOOP STOCK MAINNET RUNNER")
     print(f"chainId: {CHAIN_ID}")
     print(f"authority: {signer}")
-    print("manifest: 20")
-    print("already complete:")
+    print(f"quoteRegistry: {targets.quote_registry}")
+    print(f"priceOracle: {targets.price_oracle}")
+    print(f"selected: {', '.join(selected_symbols)}")
+    print("already complete (in selection):")
     for sym in plan["complete"]:
         print(f"  {sym}")
     if not plan["complete"]:
         print("  (none)")
     print()
-    print("remaining:")
+    print("remaining (in selection):")
     for s in plan["remaining"]:
         tag = "TX1+TX2" if s.needs_tx1 else "TX2-only"
         print(f"  {s.symbol}  ({tag})")
@@ -909,12 +1011,12 @@ def print_dry_run(signer: str, plan: dict[str, Any], *, mode: str) -> None:
         print("NO TRANSACTIONS SENT")
 
 
-def print_final_table(manifest: list[dict[str, Any]]) -> None:
-    for entry in manifest:
+def print_final_table(selected: list[dict[str, Any]], expected_count: int) -> None:
+    for entry in selected:
         print(f"{entry['symbol']:<6} COMPLETE")
     print()
-    print("20/20 STOCKS COMPLETE")
-    print("REGISTERED_QUOTE_COUNT=22")
+    print(f"{len(selected)}/{len(selected)} SELECTED STOCKS COMPLETE")
+    print(f"REGISTERED_QUOTE_COUNT={expected_count}")
 
 
 # ── Per-stock processing ─────────────────────────────────────────────────────
@@ -922,6 +1024,7 @@ def print_final_table(manifest: list[dict[str, Any]]) -> None:
 
 def process_stock(
     rpc: CastRpc,
+    targets: ScoopTargets,
     entry: dict[str, Any],
     state: StockLiveState,
     *,
@@ -950,10 +1053,8 @@ def process_stock(
         raise Abort(f"{symbol}: invalid state — {state.note}")
 
     if not broadcast:
-        # Dry-run path: no freshness/calldata/RPC writes (run() never reaches here).
         return
 
-    assert_calldata_matches_manifest(entry)
     assert_feed_fresh(rpc, entry["feed"])
 
     log_entry = StockLogEntry(
@@ -966,17 +1067,19 @@ def process_stock(
     if private_key is None:
         raise Abort("broadcast requested but AUTHORITY_PRIVATE_KEY missing")
 
-    # TX1
     if state.needs_tx1:
         print(f">>> {symbol}: sending TX1 configureFeed ...")
+        calldata = build_configure_feed_calldata(entry["token"], entry["feed"], entry["maxAge"])
         try:
             receipt = rpc.send_calldata(
-                to=PRICE_ORACLE,
-                calldata=entry["tx1"]["calldata"],
+                to=targets.price_oracle,
+                calldata=calldata,
                 private_key=private_key,
                 from_addr=AUTHORITY,
             )
-            txh, block, gas = receipt_ok(receipt)
+            txh, block, gas = receipt_ok(
+                receipt, expected_to=targets.price_oracle, expected_from=AUTHORITY
+            )
         except Abort as e:
             log_entry.error = str(e)
             upsert_stock_log(log, log_entry)
@@ -987,7 +1090,7 @@ def process_stock(
         log_entry.tx1Block = block
         log_entry.tx1GasUsed = gas
         try:
-            verify_oracle_after_tx1(rpc, entry)
+            verify_oracle_after_tx1(rpc, targets, entry)
             log_entry.tx1Verified = True
         except Abort as e:
             log_entry.tx1Verified = False
@@ -999,21 +1102,21 @@ def process_stock(
         save_log(log_path, log)
         print(f">>> {symbol}: TX1 verified ({txh})")
 
-    # Re-check freshness immediately before TX2
     assert_feed_fresh(rpc, entry["feed"])
-    assert_calldata_matches_manifest(entry)
 
-    # TX2 (UNTOUCHED has needs_tx2=True; ORACLE_ONLY resumes at TX2)
     if state.needs_tx2:
         print(f">>> {symbol}: sending TX2 registerQuote ...")
+        calldata = build_register_quote_calldata(entry["token"], entry["quoteType"])
         try:
             receipt = rpc.send_calldata(
-                to=QUOTE_REGISTRY,
-                calldata=entry["tx2"]["calldata"],
+                to=targets.quote_registry,
+                calldata=calldata,
                 private_key=private_key,
                 from_addr=AUTHORITY,
             )
-            txh, block, gas = receipt_ok(receipt)
+            txh, block, gas = receipt_ok(
+                receipt, expected_to=targets.quote_registry, expected_from=AUTHORITY
+            )
         except Abort as e:
             log_entry.error = str(e)
             upsert_stock_log(log, log_entry)
@@ -1024,7 +1127,7 @@ def process_stock(
         log_entry.tx2Block = block
         log_entry.tx2GasUsed = gas
         try:
-            verify_after_tx2(rpc, entry)
+            verify_after_tx2(rpc, targets, entry)
             log_entry.tx2Verified = True
             log_entry.finalState = "complete"
             log_entry.completedAt = utc_now()
@@ -1047,6 +1150,7 @@ def run(
     broadcast: bool,
     manifest_path: Path,
     log_path: Path,
+    symbols_csv: Optional[str] = None,
     confirm_fn: Optional[Callable[[str], str]] = None,
 ) -> int:
     rpc_url = os.environ.get("ROBINHOOD_RPC_URL", "").strip()
@@ -1056,40 +1160,54 @@ def run(
     if not private_key:
         raise Abort("AUTHORITY_PRIVATE_KEY required (used to verify signer; never printed)")
 
-    # Normalize key for cast (no logging)
     if not private_key.startswith("0x"):
         private_key = "0x" + private_key
 
     os.chdir(REPO_ROOT)
-    manifest = load_manifest(manifest_path)
+    full_manifest = load_manifest(manifest_path)
+    targets = load_scoop_targets_from_env()
+
+    if broadcast and (symbols_csv is None or symbols_csv.strip() == ""):
+        raise Abort("broadcast requires explicit --symbols selection (refusing full-catalogue broadcast)")
+
+    # Dry-run without --symbols inspects the full catalogue.
+    if symbols_csv is None or symbols_csv.strip() == "":
+        selected = list(full_manifest)
+    else:
+        selected = select_symbols(full_manifest, symbols_csv)
+
     rpc = CastRpc(rpc_url)
     signer = derive_signer_address(private_key)
 
-    global_preflight(rpc, manifest, signer, require_balance=broadcast)
+    global_preflight(rpc, targets, full_manifest, signer, require_balance=broadcast)
 
-    states = [classify_stock(rpc, entry) for entry in manifest]
+    states = [classify_stock(rpc, targets, entry) for entry in selected]
     for st in states:
         if st.classification == StockState.INVALID:
             raise Abort(f"{st.symbol}: invalid live state — {st.note}")
 
     plan = plan_from_states(states)
     mode = "BROADCAST" if broadcast else "DRY_RUN"
-    print_dry_run(signer, plan, mode=mode)
+    selected_symbols = [e["symbol"] for e in selected]
+    print_dry_run(signer, targets, plan, mode=mode, selected_symbols=selected_symbols)
 
     remaining_n = len(plan["remaining"])
     writes = plan["writes"]
 
     if remaining_n == 0:
         print()
-        print("Nothing remaining — running final verification...")
-        final_verification(rpc, manifest)
-        print_final_table(manifest)
+        print("Nothing remaining in selection — running final verification...")
+        final_verification(rpc, targets, full_manifest, selected)
+        full_states = [classify_stock(rpc, targets, e) for e in full_manifest]
+        print_final_table(selected, expected_quote_count_from_states(full_states))
         return 0
 
     if not broadcast:
-        # Dry-run: zero chain writes and zero execution-log mutations.
         print()
-        print(f"Dry-run complete. Remaining stocks: {remaining_n}. Expected writes if broadcast: {writes}.")
+        print(
+            f"Dry-run complete. Remaining in selection: {remaining_n}. "
+            f"Expected writes if broadcast: {writes}."
+        )
         return 0
 
     log = load_log(log_path)
@@ -1098,9 +1216,14 @@ def run(
     log.mode = mode
     log.authority = AUTHORITY
     log.chainId = CHAIN_ID
+    log.quoteRegistry = targets.quote_registry
+    log.priceOracle = targets.price_oracle
     save_log(log_path, log)
 
-    # Human confirmation gate
+    print()
+    print("Selected symbols for broadcast:")
+    for sym in selected_symbols:
+        print(f"  {sym}")
     expected = f"BROADCAST {remaining_n} STOCKS"
     prompt = f"Type {expected} to continue: "
     fn = confirm_fn or input
@@ -1110,18 +1233,18 @@ def run(
 
     state_by_symbol = {s.symbol: s for s in states}
 
-    for entry in manifest:
+    for entry in selected:
         st = state_by_symbol[entry["symbol"]]
         if st.classification == StockState.COMPLETE:
             continue
-        # Re-classify live immediately before acting (chain is source of truth)
-        live = classify_stock(rpc, entry)
+        live = classify_stock(rpc, targets, entry)
         if live.classification == StockState.INVALID:
             raise Abort(f"{entry['symbol']}: invalid before write — {live.note}")
         if live.classification == StockState.COMPLETE:
             continue
         process_stock(
             rpc,
+            targets,
             entry,
             live,
             broadcast=True,
@@ -1131,18 +1254,25 @@ def run(
         )
 
     print()
-    print("All remaining stocks processed — final verification...")
-    final_verification(rpc, manifest)
-    print_final_table(manifest)
+    print("Selected remaining stocks processed — final verification...")
+    final_verification(rpc, targets, full_manifest, selected)
+    full_states = [classify_stock(rpc, targets, e) for e in full_manifest]
+    print_final_table(selected, expected_quote_count_from_states(full_states))
     return 0
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="SCOOP remaining stock catalogue production runner")
+    parser = argparse.ArgumentParser(description="SCOOP stock catalogue production runner (canonical)")
     parser.add_argument(
         "--broadcast",
         action="store_true",
         help="Enable live writes (default is dry-run / preflight only)",
+    )
+    parser.add_argument(
+        "--symbols",
+        type=str,
+        default=None,
+        help="Comma-separated symbols from the frozen catalogue (required for --broadcast)",
     )
     parser.add_argument(
         "--manifest",
@@ -1158,11 +1288,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        return run(broadcast=args.broadcast, manifest_path=args.manifest, log_path=args.log)
+        return run(
+            broadcast=args.broadcast,
+            manifest_path=args.manifest,
+            log_path=args.log,
+            symbols_csv=args.symbols,
+        )
     except Abort as e:
         print(f"ABORT: {e}", file=sys.stderr)
         return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
