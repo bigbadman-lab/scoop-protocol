@@ -27,13 +27,16 @@ interface IFeedMeta {
 
 /**
  * @title ScoopUsdGQuoteAuditForkTest
- * @notice Phase 6C.1 — read-only / fork-only USDG mainnet quote audit.
+ * @notice HISTORICAL / forensic only — Phase 6C.1 USDG audit against the legacy SCOOP V1 stack.
  * @dev Never broadcasts. Fork mutations only via vm.prank of the live authority EOA.
+ *      Targets historical Factory/QR/PO (0x15E874… / 0x7e34424D… / 0xc818e890…).
+ *      These are NOT the canonical Phase A production contracts. Do not use this suite as a
+ *      production configuration checklist for the canonical stack.
  */
 contract ScoopUsdGQuoteAuditForkTest is Test {
     using StateLibrary for IPoolManager;
 
-    // Production SCOOP V1 — scoop-v1-mainnet-canary
+    // HISTORICAL SCOOP V1 (scoop-v1-mainnet-canary) — NOT canonical Phase A production.
     ScoopFactory constant FACTORY = ScoopFactory(0x15E874Bc667435ddbF2a67c0362701DC23C90833);
     ScoopQuoteRegistry constant QUOTE_REGISTRY = ScoopQuoteRegistry(0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD);
     ScoopPriceOracle constant PRICE_ORACLE = ScoopPriceOracle(0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12);

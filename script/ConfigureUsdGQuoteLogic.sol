@@ -17,12 +17,12 @@ interface IFeedDescription {
  * @notice Shared, heavily guarded USDG configuration for script + fork tests.
  * @dev Ordering invariant: `configureFeed` FIRST, `registerQuote` SECOND.
  *      Registered quotes start enabled, so the oracle must exist before registration.
+ *      QuoteRegistry / PriceOracle are caller-supplied (env-driven in production script).
+ *      This library does NOT hardcode SCOOP QR/PO deployment addresses.
  */
 library ConfigureUsdGQuoteLogic {
     uint256 internal constant EXPECTED_CHAIN_ID = 4663;
 
-    address internal constant QUOTE_REGISTRY = 0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD;
-    address internal constant PRICE_ORACLE = 0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12;
     address internal constant AUTHORITY = 0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7;
     address internal constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
     address internal constant USDG_USD_FEED = 0x61B7e5650328764B076A108EFF5fa7282a1B9aD2;
@@ -33,8 +33,10 @@ library ConfigureUsdGQuoteLogic {
     uint48 internal constant ETH_MAX_AGE = 86_400;
 
     error WrongChainId(uint256 expected, uint256 actual);
-    error WrongQuoteRegistry(address expected, address actual);
-    error WrongPriceOracle(address expected, address actual);
+    error ZeroQuoteRegistry();
+    error ZeroPriceOracle();
+    error QuoteRegistryHasNoCode(address quoteRegistry);
+    error PriceOracleHasNoCode(address priceOracle);
     error WrongUsdG(address expected, address actual);
     error WrongUsdGFeed(address expected, address actual);
     error WrongRegistryAuthority(address expected, address actual);
@@ -61,6 +63,9 @@ library ConfigureUsdGQuoteLogic {
         bool feedEnabled;
     }
 
+    /// @notice Validate chain, USDG identities, and that supplied QR/PO are live authority-bound contracts.
+    /// @dev Caller supplies QR/PO (production: `SCOOP_QUOTE_REGISTRY` / `SCOOP_PRICE_ORACLE`).
+    ///      Does not hardcode canonical or historical SCOOP deployment addresses.
     function assertCanonicalEnvironment(
         uint256 chainId,
         address quoteRegistry,
@@ -69,8 +74,10 @@ library ConfigureUsdGQuoteLogic {
         address usdgFeed
     ) internal view {
         if (chainId != EXPECTED_CHAIN_ID) revert WrongChainId(EXPECTED_CHAIN_ID, chainId);
-        if (quoteRegistry != QUOTE_REGISTRY) revert WrongQuoteRegistry(QUOTE_REGISTRY, quoteRegistry);
-        if (priceOracle != PRICE_ORACLE) revert WrongPriceOracle(PRICE_ORACLE, priceOracle);
+        if (quoteRegistry == address(0)) revert ZeroQuoteRegistry();
+        if (priceOracle == address(0)) revert ZeroPriceOracle();
+        if (quoteRegistry.code.length == 0) revert QuoteRegistryHasNoCode(quoteRegistry);
+        if (priceOracle.code.length == 0) revert PriceOracleHasNoCode(priceOracle);
         if (usdg != USDG) revert WrongUsdG(USDG, usdg);
         if (usdgFeed != USDG_USD_FEED) revert WrongUsdGFeed(USDG_USD_FEED, usdgFeed);
 

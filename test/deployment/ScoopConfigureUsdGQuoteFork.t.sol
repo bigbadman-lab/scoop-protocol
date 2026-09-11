@@ -41,106 +41,118 @@ contract ConfigureUsdGQuoteHarness {
         Logic.assertNotYetConfigured(quoteRegistry, priceOracle, usdg);
     }
 
-    function executeConfiguration(address quoteRegistry, address priceOracle, address usdg, address usdgFeed) external {
+    function executeConfiguration(address quoteRegistry, address priceOracle, address usdg, address usdgFeed)
+        external
+    {
         Logic.executeConfiguration(quoteRegistry, priceOracle, usdg, usdgFeed);
     }
 }
 
 /**
  * @title ScoopConfigureUsdGQuoteForkTest
- * @notice Phase 6C.2A — fork-only validation of guarded USDG configuration tooling.
+ * @notice Fork validation of guarded USDG configuration against the CANONICAL SCOOP stack.
  * @dev Never broadcasts. Authority is impersonated on the fork only.
+ *      QR/PO are supplied as test constants matching Phase A canonical deployments — the
+ *      production script loads the same targets via SCOOP_QUOTE_REGISTRY / SCOOP_PRICE_ORACLE.
+ *      Historical SCOOP V1 addresses are intentionally absent from this suite.
  */
 contract ScoopConfigureUsdGQuoteForkTest is Test {
-    ScoopFactory internal constant FACTORY = ScoopFactory(0x15E874Bc667435ddbF2a67c0362701DC23C90833);
+    // Canonical Phase A production stack (NOT historical Factory 0x15E874…).
+    ScoopFactory internal constant FACTORY = ScoopFactory(0x4B227d5E6199f42ceA4e638875fF8C740757DD3C);
     ScoopCreatorRegistry internal constant CREATOR_REGISTRY =
-        ScoopCreatorRegistry(0x608e117EdA28b65cDa473756a990B8246EAe62D2);
+        ScoopCreatorRegistry(0xC99ec41AAe874B02D6e7392B43b713B6dD2E03C2);
+    address internal constant CANONICAL_QUOTE_REGISTRY = 0xE3782bef83cfB17B5a84B2649405a944dc58e40C;
+    address internal constant CANONICAL_PRICE_ORACLE = 0x346a84fbAB49a50a2255F2808fd6BCe812DaFe5c;
 
     ConfigureUsdGQuoteHarness internal harness;
     address internal creator;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"), 56_634_459);
+        vm.createSelectFork(vm.envString("ROBINHOOD_RPC_URL"));
         require(block.chainid == 4663, "wrong chain");
+        require(address(FACTORY.quoteRegistry()) == CANONICAL_QUOTE_REGISTRY, "factory QR mismatch");
+        require(address(FACTORY.priceOracle()) == CANONICAL_PRICE_ORACLE, "factory PO mismatch");
         harness = new ConfigureUsdGQuoteHarness();
         creator = makeAddr("usdgConfigCreator_FORK_ONLY");
         vm.deal(creator, 5 ether);
     }
 
     function test_fork_happyPath_configuresUsdGOracleFirstThenRegister() public {
-        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE);
+        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE);
 
         Logic.assertCanonicalEnvironment(
-            block.chainid, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED
+            block.chainid, CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED
         );
         Logic.assertUsdGMetadata(Logic.USDG);
         Logic.assertFeedLiveAndFresh(Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
-        Logic.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+        Logic.assertNotYetConfigured(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG);
 
-        // Topic0 hashes for source events (assert without fragile enum topic encoding).
         bytes32 feedConfiguredTopic0 = keccak256("PriceFeedConfigured(address,address,uint48,uint8)");
         bytes32 quoteRegisteredTopic0 = keccak256("QuoteRegistered(address,uint8)");
 
         vm.recordLogs();
         vm.startPrank(Logic.AUTHORITY);
-        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.executeConfiguration(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bool sawFeed;
-        bool sawQuote;
+        int256 feedIdx = -1;
+        int256 quoteIdx = -1;
         for (uint256 i; i < logs.length; ++i) {
             if (
-                logs[i].emitter == Logic.PRICE_ORACLE && logs[i].topics.length > 0
+                logs[i].emitter == CANONICAL_PRICE_ORACLE && logs[i].topics.length > 0
                     && logs[i].topics[0] == feedConfiguredTopic0
             ) {
-                sawFeed = true;
+                feedIdx = int256(i);
                 assertEq(address(uint160(uint256(logs[i].topics[1]))), Logic.USDG);
                 assertEq(address(uint160(uint256(logs[i].topics[2]))), Logic.USDG_USD_FEED);
             }
             if (
-                logs[i].emitter == Logic.QUOTE_REGISTRY && logs[i].topics.length > 0
+                logs[i].emitter == CANONICAL_QUOTE_REGISTRY && logs[i].topics.length > 0
                     && logs[i].topics[0] == quoteRegisteredTopic0
             ) {
-                sawQuote = true;
+                quoteIdx = int256(i);
                 assertEq(address(uint160(uint256(logs[i].topics[1]))), Logic.USDG);
             }
         }
-        assertTrue(sawFeed, "missing PriceFeedConfigured");
-        assertTrue(sawQuote, "missing QuoteRegistered");
+        assertTrue(feedIdx >= 0, "missing PriceFeedConfigured");
+        assertTrue(quoteIdx >= 0, "missing QuoteRegistered");
+        assertTrue(feedIdx < quoteIdx, "oracle must configure before registerQuote");
 
-        Logic.assertPostconditions(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
-        Logic.assertEthUnchanged(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, ethBefore);
-        console2.log("usdgPriceUsd", ScoopPriceOracle(Logic.PRICE_ORACLE).getPriceUsd(Logic.USDG));
+        Logic.assertPostconditions(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.assertEthUnchanged(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, ethBefore);
+        console2.log("usdgPriceUsd", ScoopPriceOracle(CANONICAL_PRICE_ORACLE).getPriceUsd(Logic.USDG));
     }
 
     function test_guard_wrongChainId() public {
         vm.expectRevert(abi.encodeWithSelector(Logic.WrongChainId.selector, uint256(4663), uint256(1)));
-        harness.assertCanonicalEnvironment(1, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
-    }
-
-    function test_guard_wrongRegistry() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(Logic.WrongQuoteRegistry.selector, Logic.QUOTE_REGISTRY, address(0xBEEF))
+        harness.assertCanonicalEnvironment(
+            1, CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED
         );
-        harness.assertCanonicalEnvironment(4663, address(0xBEEF), Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
     }
 
-    function test_guard_wrongOracle() public {
-        vm.expectRevert(abi.encodeWithSelector(Logic.WrongPriceOracle.selector, Logic.PRICE_ORACLE, address(0xBEEF)));
-        harness.assertCanonicalEnvironment(4663, Logic.QUOTE_REGISTRY, address(0xBEEF), Logic.USDG, Logic.USDG_USD_FEED);
+    function test_guard_zeroRegistry() public {
+        vm.expectRevert(Logic.ZeroQuoteRegistry.selector);
+        harness.assertCanonicalEnvironment(4663, address(0), CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+    }
+
+    function test_guard_zeroOracle() public {
+        vm.expectRevert(Logic.ZeroPriceOracle.selector);
+        harness.assertCanonicalEnvironment(4663, CANONICAL_QUOTE_REGISTRY, address(0), Logic.USDG, Logic.USDG_USD_FEED);
     }
 
     function test_guard_wrongUsdG() public {
         vm.expectRevert(abi.encodeWithSelector(Logic.WrongUsdG.selector, Logic.USDG, address(0xBEEF)));
         harness.assertCanonicalEnvironment(
-            4663, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, address(0xBEEF), Logic.USDG_USD_FEED
+            4663, CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, address(0xBEEF), Logic.USDG_USD_FEED
         );
     }
 
     function test_guard_wrongFeed() public {
         vm.expectRevert(abi.encodeWithSelector(Logic.WrongUsdGFeed.selector, Logic.USDG_USD_FEED, address(0xBEEF)));
-        harness.assertCanonicalEnvironment(4663, Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, address(0xBEEF));
+        harness.assertCanonicalEnvironment(
+            4663, CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, address(0xBEEF)
+        );
     }
 
     function test_guard_unauthorizedCaller() public {
@@ -151,18 +163,18 @@ contract ScoopConfigureUsdGQuoteForkTest is Test {
 
     function test_fork_refuseAlreadyConfiguredOracle() public {
         vm.prank(Logic.AUTHORITY);
-        ScoopPriceOracle(Logic.PRICE_ORACLE).configureFeed(Logic.USDG, Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
+        ScoopPriceOracle(CANONICAL_PRICE_ORACLE).configureFeed(Logic.USDG, Logic.USDG_USD_FEED, Logic.USDG_MAX_AGE);
 
         vm.expectRevert(Logic.UsdGOracleAlreadyConfigured.selector);
-        harness.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+        harness.assertNotYetConfigured(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG);
     }
 
     function test_fork_refuseAlreadyRegisteredQuote() public {
         vm.prank(Logic.AUTHORITY);
-        ScoopQuoteRegistry(Logic.QUOTE_REGISTRY).registerQuote(Logic.USDG, ScoopQuoteRegistry.QuoteType.Scoop);
+        ScoopQuoteRegistry(CANONICAL_QUOTE_REGISTRY).registerQuote(Logic.USDG, ScoopQuoteRegistry.QuoteType.Scoop);
 
         vm.expectRevert(Logic.UsdGAlreadyRegistered.selector);
-        harness.assertNotYetConfigured(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG);
+        harness.assertNotYetConfigured(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG);
     }
 
     function test_guard_staleFeed() public {
@@ -182,25 +194,25 @@ contract ScoopConfigureUsdGQuoteForkTest is Test {
     }
 
     function test_fork_ethConfigUnchangedAfterUsdGConfig() public {
-        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE);
+        Logic.EthSnapshot memory ethBefore = Logic.snapshotEth(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE);
         assertTrue(ethBefore.registered);
         assertTrue(ethBefore.enabled);
         assertEq(ethBefore.feed, Logic.ETH_USD_FEED);
         assertEq(ethBefore.maxAge, Logic.ETH_MAX_AGE);
 
         vm.startPrank(Logic.AUTHORITY);
-        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.executeConfiguration(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
         vm.stopPrank();
 
-        Logic.assertEthUnchanged(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, ethBefore);
+        Logic.assertEthUnchanged(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, ethBefore);
     }
 
     function test_fork_fullLaunchRehearsalAgainstUsdG() public {
         ScoopFeeConfigFactoryGuard.skipUnlessFeeConfig(FACTORY);
         vm.startPrank(Logic.AUTHORITY);
-        Logic.executeConfiguration(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.executeConfiguration(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
         vm.stopPrank();
-        Logic.assertPostconditions(Logic.QUOTE_REGISTRY, Logic.PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
+        Logic.assertPostconditions(CANONICAL_QUOTE_REGISTRY, CANONICAL_PRICE_ORACLE, Logic.USDG, Logic.USDG_USD_FEED);
 
         uint256 quoteIn = 25e6;
         deal(Logic.USDG, creator, quoteIn);

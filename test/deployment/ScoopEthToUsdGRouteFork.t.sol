@@ -41,8 +41,12 @@ interface IQuoterV2 {
         returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate);
 }
 
-/// @notice Phase 6C.1B fork proof: post-launch ETH -> USDG -> TOKEN in one Universal Router tx.
+/**
+ * @notice HISTORICAL / forensic only — Phase 6C.1B ETH→USDG→TOKEN route on legacy SCOOP V1.
+ * @dev Targets historical Factory/QR/PO. NOT the canonical Phase A production stack.
+ */
 contract ScoopEthToUsdGRouteForkTest is Test {
+    // HISTORICAL SCOOP V1 — NOT canonical Phase A production.
     ScoopFactory constant FACTORY = ScoopFactory(0x15E874Bc667435ddbF2a67c0362701DC23C90833);
     ScoopQuoteRegistry constant QUOTE_REGISTRY = ScoopQuoteRegistry(0x7e34424D65e5042Ac82cd036Fa63F3E841349eCD);
     ScoopPriceOracle constant PRICE_ORACLE = ScoopPriceOracle(0xc818e890AE8dBE0CcD1Bf9169Adb19D578867f12);
