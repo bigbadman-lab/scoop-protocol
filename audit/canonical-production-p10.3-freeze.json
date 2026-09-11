@@ -1,0 +1,71 @@
+{
+  "protocol": "SCOOP",
+  "artifact": "canonical-production-p10.3-freeze",
+  "phase": "P10.3",
+  "status": "COMPLETE",
+  "frozenAt": "2026-09-11T21:52:59.580855+00:00",
+  "chainId": 4663,
+  "sourceRepo": {
+    "repo": "scoop-protocol",
+    "branch": "main",
+    "baselineCommitBeforeFreeze": "da109a9c9f533b836d666cbdb1e010aaf1f1cb90"
+  },
+  "deploymentBlock": {
+    "value": 60525572,
+    "semantics": "Phase A earliest canonical deployment block (start of canonical stack deployment on Robinhood Chain 4663). Not an indexer activation cue for app/workers; P10.4 cutover remains separately gated.",
+    "fieldName": "deploymentBlock"
+  },
+  "contracts": {
+    "CreatorRegistry": "0xC99ec41AAe874B02D6e7392B43b713B6dD2E03C2",
+    "TokenDeployer": "0x259D3f3474fD192174BC245feb6d676CC4Fe4379",
+    "LaunchDeployer": "0x3f6dF184ff86F32bf431c7Aff5267d1C899DAcBd",
+    "QuoteRegistry": "0xE3782bef83cfB17B5a84B2649405a944dc58e40C",
+    "PriceOracle": "0x346a84fbAB49a50a2255F2808fd6BCe812DaFe5c",
+    "FactoryDeployer": "0x4c9DE09250026228C6869881F7FF07125aA096D4",
+    "CreatorRewards": "0xdB80eED1d52c8c80Ae3E221C85dA94319132f6EF",
+    "Factory": "0x4B227d5E6199f42ceA4e638875fF8C740757DD3C"
+  },
+  "rootPublisher": "0xe37C1c028201054461d0F283896B56552b054B29",
+  "authorities": {
+    "registry": "0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7",
+    "oracle": "0x54dCe3F53bbe3fBa3d1035E045a8a4de850eDcE7",
+    "verification": "0xe176aCa5227F4c59c843cD0f2BAef21924DbfFE8"
+  },
+  "recipients": {
+    "launchFee": "0xCb2D4ceD82B5E9e013F4db58F999662052aE1FA3",
+    "buybackProtocol": "0x4DD3fe45AD34A0De7182f51822246A2E4379bA15",
+    "operations": "0x17CD9659e8cB03c49F9C631218f57d65089d7C95"
+  },
+  "quoteCatalogue": {
+    "path": "audit/canonical-production-quote-catalogue-22.json",
+    "stockManifestPath": "audit/final-production-stock-manifest-20.json",
+    "registeredQuoteCount": 22,
+    "eth": "LIVE",
+    "usdg": "LIVE",
+    "stocksLive": "20/20",
+    "unknownQuotes": 0
+  },
+  "verificationAsOfP103Completion": {
+    "factoryReferencesCanonicalQrPo": true,
+    "authorityFinalNonceAfterConfiguration": 89,
+    "quoteCount": 22,
+    "ethLive": true,
+    "usdgLive": true,
+    "stocksLive": "20/20",
+    "noUnknownQuote": true
+  },
+  "relatedEvidence": {
+    "stockExecutionLog": "audit/stock-mainnet-execution-log.json",
+    "stockExecutionLogTreatment": "Tracked production forensic evidence of configureFeed/registerQuote receipts for the 20 stocks; contains no secrets."
+  },
+  "cutoverBoundary": {
+    "scoopAppManifest": "packages/contracts/src/manifests/canonical-production.json (scoop-app repo)",
+    "decision": "NOT_UPDATED_IN_P10.3",
+    "reason": "That manifest currently has status undeployed/contracts null and is the activation signal for app/indexer/keeper cutover. Updating it here would perform P10.4. P10.3 freezes evidence only inside scoop-protocol/audit."
+  },
+  "notes": [
+    "No private keys, RPC credentials, or .env values are included.",
+    "Broadcast JSON under broadcast/ remains local Foundry operational artifact and is not part of this freeze commit.",
+    "P10.4 canonical production cutover is NOT started by this artifact."
+  ]
+}
